@@ -1,124 +1,142 @@
 <?php
-require_once '../models/Event.php';
-
 class EventController {
-    private $event;
+    private $db;
 
     public function __construct($db) {
-        $this->event = new Event($db);
+        $this->db = $db;
     }
 
     // Get all events
     public function index() {
-        $stmt = $this->event->read();
+        $query = "SELECT * FROM event";
+        $stmt = $this->db->prepare($query);
+        $stmt->execute();
+        
         $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        header('Content-Type: application/json'); // Set header Content-Type
         echo json_encode([
             'status' => 'success',
+            'message' => 'Events retrieved successfully.',
+            'code' => 200,
             'data' => $events
-        ], JSON_PRETTY_PRINT); // Menggunakan JSON_PRETTY_PRINT untuk format yang lebih rapi
+        ], JSON_PRETTY_PRINT);
     }
 
-    // Get event by ID
+    // Get a single event
     public function show($event_id) {
-        $stmt = $this->event->find($event_id);
+        $query = "SELECT * FROM event WHERE id = ?";
+        $stmt = $this->db->prepare($query);
+        $stmt->execute([$event_id]);
+        
         $event = $stmt->fetch(PDO::FETCH_ASSOC);
-        header('Content-Type: application/json'); // Set header Content-Type
         if ($event) {
             echo json_encode([
                 'status' => 'success',
+                'message' => 'Event retrieved successfully.',
+                'code' => 200,
                 'data' => $event
             ], JSON_PRETTY_PRINT);
         } else {
             echo json_encode([
                 'status' => 'error',
-                'message' => 'Event not found.'
+                'message' => 'Event not found.',
+                'code' => 404,
+                'data' => null
             ], JSON_PRETTY_PRINT);
         }
     }
 
-    // Create new event
-    public function store() {
+    // Create a new event
+    public function create() {
         $data = json_decode(file_get_contents("php://input"));
 
-        // Mengatur data
-        $this->event->event_id = $data->event_id;
-        $this->event->propose_user_id = $data->propose_user_id;
-        $this->event->title = $data->title;
-        $this->event->date_add = date('Y-m-d H:i:s');
-        $this->event->category_id = $data->category_id;
-        $this->event->admin_user_id = $data->admin_user_id;
-        $this->event->description = $data->description;
-        $this->event->poster = $data->poster;
-        $this->event->location = $data->location;
-        $this->event->place = $data->place;
-        $this->event->quota = $data->quota;
-        $this->event->date_start = $data->date_start;
-        $this->event->date_end = $data->date_end;
-        $this->event->status = $data->status;
-        $this->event->note = $data->note;
+        // Prepare SQL statement
+        $stmt = $this->db->prepare("INSERT INTO event (propose_user_id, title, date_add, category_id, description, poster, location, place, quota, date_start, date_end, admin_user_id, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
-        header('Content-Type: application/json'); // Set header Content-Type
-        if ($this->event->create()) {
+        if ($stmt->execute([
+            $data->propose_user_id,
+            $data->title,
+            $data->date_add,
+            $data->category_id,
+            $data->description,
+            $data->poster,
+            $data->location,
+            $data->place,
+            $data->quota,
+            $data->date_start,
+            $data->date_end,
+            $data->admin_user_id,
+            $data->status
+        ])) {
             echo json_encode([
                 'status' => 'success',
-                'message' => 'Event created successfully.'
+                'message' => 'Event created successfully.',
+                'code' => 201,
+                'data' => null
             ], JSON_PRETTY_PRINT);
         } else {
             echo json_encode([
                 'status' => 'error',
-                'message' => 'Event creation failed.'
+                'message' => 'Event creation failed.',
+                'code' => 500,
+                'data' => null
             ], JSON_PRETTY_PRINT);
         }
     }
 
-    // Update event
+    // Update an existing event
     public function update($event_id) {
         $data = json_decode(file_get_contents("php://input"));
-        
-        $this->event->event_id = $event_id;
-        $this->event->propose_user_id = $data->propose_user_id;
-        $this->event->title = $data->title;
-        $this->event->date_add = $data->date_add;
-        $this->event->category_id = $data->category_id;
-        $this->event->admin_user_id = $data->admin_user_id;
-        $this->event->description = $data->description;
-        $this->event->poster = $data->poster;
-        $this->event->location = $data->location;
-        $this->event->place = $data->place;
-        $this->event->quota = $data->quota;
-        $this->event->date_start = $data->date_start;
-        $this->event->date_end = $data->date_end;
-        $this->event->status = $data->status;
-        $this->event->note = $data->note;
 
-        header('Content-Type: application/json'); // Set header Content-Type
-        if ($this->event->update()) {
+        // Prepare SQL statement
+        $stmt = $this->db->prepare("UPDATE event SET title = ?, category_id = ?, description = ?, poster = ?, location = ?, place = ?, quota = ?, date_start = ?, date_end = ?, admin_user_id = ?, status = ? WHERE id = ?");
+
+        if ($stmt->execute([
+            $data->title,
+            $data->category_id,
+            $data->description,
+            $data->poster,
+            $data->location,
+            $data->place,
+            $data->quota,
+            $data->date_start,
+            $data->date_end,
+            $data->admin_user_id,
+            $data->status,
+            $event_id
+        ])) {
             echo json_encode([
                 'status' => 'success',
-                'message' => 'Event updated successfully.'
+                'message' => 'Event updated successfully.',
+                'code' => 200,
+                'data' => null
             ], JSON_PRETTY_PRINT);
         } else {
             echo json_encode([
                 'status' => 'error',
-                'message' => 'Event update failed.'
+                'message' => 'Event update failed.',
+                'code' => 500,
+                'data' => null
             ], JSON_PRETTY_PRINT);
         }
     }
 
-    // Delete event
+    // Delete an event
     public function destroy($event_id) {
-        $this->event->event_id = $event_id;
-        header('Content-Type: application/json'); // Set header Content-Type
-        if ($this->event->delete()) {
+        $stmt = $this->db->prepare("DELETE FROM event WHERE id = ?");
+        
+        if ($stmt->execute([$event_id])) {
             echo json_encode([
                 'status' => 'success',
-                'message' => 'Event deleted successfully.'
+                'message' => 'Event deleted successfully.',
+                'code' => 200,
+                'data' => null
             ], JSON_PRETTY_PRINT);
         } else {
             echo json_encode([
                 'status' => 'error',
-                'message' => 'Event deletion failed.'
+                'message' => 'Event deletion failed.',
+                'code' => 500,
+                'data' => null
             ], JSON_PRETTY_PRINT);
         }
     }

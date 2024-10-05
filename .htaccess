@@ -1,0 +1,10 @@
+RewriteEngine On
+RewriteBase /pbl/
+
+# For events
+RewriteRule ^events/?$ routes/eventRoutes.php [NC,L]
+RewriteRule ^events/([0-9]+)/?$ routes/eventRoutes.php?event_id=$1 [NC,L]
+
+# For users
+RewriteRule ^users/?$ routes/userRoutes.php [NC,L]
+RewriteRule ^users/([0-9]+)/?$ routes/userRoutes.php?user_id=$1 [NC,L]
