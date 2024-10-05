@@ -27,17 +27,33 @@ switch ($request_method) {
     case 'PUT':
         if ($event_id) {
             $eventController->update($event_id);
+        } else {
+            header("HTTP/1.0 400 Bad Request"); // Missing event_id
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Missing event_id.'
+            ], JSON_PRETTY_PRINT);
         }
         break;
 
     case 'DELETE':
         if ($event_id) {
             $eventController->destroy($event_id);
+        } else {
+            header("HTTP/1.0 400 Bad Request"); // Missing event_id
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Missing event_id.'
+            ], JSON_PRETTY_PRINT);
         }
         break;
 
     default:
-        header("HTTP/1.0 405 Method Not Allowed");
+        header("HTTP/1.0 405 Method Not Allowed"); // Method not allowed
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Method not allowed.'
+        ], JSON_PRETTY_PRINT);
         break;
 }
 ?>

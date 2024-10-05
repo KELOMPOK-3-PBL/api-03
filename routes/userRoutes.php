@@ -1,49 +1,59 @@
 <?php
 require_once '../controllers/UserController.php';
-require_once '../controllers/EventController.php';
+require_once '../config/database.php';
 
-$path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$database = new Database();
+$db = $database->getConnection();
 
-// Extract query parameters
-parse_str($_SERVER['QUERY_STRING'], $query);
+$userController = new UserController($db);
 
-switch ($path) {
-    case '/users':
-        $controller = new UserController();
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $controller->store();
-        } elseif (isset($query['user_id'])) {
-            $controller->show($query['user_id']);  // GET a specific user
+// Handle HTTP methods
+$request_method = $_SERVER["REQUEST_METHOD"];
+$user_id = isset($_GET['user_id']) ? $_GET['user_id'] : null;
+
+switch ($request_method) {
+    case 'GET':
+        if ($user_id) {
+            $userController->show($user_id);  // GET a specific user
         } else {
-            $controller->index();  // GET all users
+            $userController->index();  // GET all users
         }
         break;
-    case '/users/update':
-        $controller = new UserController();
-        $controller->update();
-        break;
-    case '/users/delete':
-        $controller = new UserController();
-        $controller->delete();
+
+    case 'POST':
+        $userController->store();  // Create a new user
         break;
 
-    case '/events':
-        $controller = new EventController();
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $controller->store();
-        } elseif (isset($query['event_id'])) {
-            $controller->show($query['event_id']);  // GET a specific event
+    case 'PUT':
+        if ($user_id) {
+            $userController->update();  // Update a specific user
         } else {
-            $controller->index();  // GET all events
+            header("HTTP/1.0 400 Bad Request");  // Missing user_id
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Missing user_id.'
+            ], JSON_PRETTY_PRINT);
         }
         break;
-    case '/events/update':
-        $controller = new EventController();
-        $controller->update();
+
+    case 'DELETE':
+        if ($user_id) {
+            $userController->delete();  // Delete a specific user
+        } else {
+            header("HTTP/1.0 400 Bad Request");  // Missing user_id
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Missing user_id.'
+            ], JSON_PRETTY_PRINT);
+        }
         break;
-    case '/events/delete':
-        $controller = new EventController();
-        $controller->delete();
+
+    default:
+        header("HTTP/1.0 405 Method Not Allowed");  // Method not allowed
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Method not allowed.'
+        ], JSON_PRETTY_PRINT);
         break;
 }
 ?>

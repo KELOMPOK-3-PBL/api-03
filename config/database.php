@@ -2,7 +2,7 @@
 
 class Database {
     private $host = "localhost";
-    private $db_name = "event_proposal";
+    private $db_name = "testpbl";
     private $username = "root";
     private $password = "";
     public $conn;

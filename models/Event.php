@@ -71,17 +71,60 @@ class Event {
         return false;
     }
 
-    // Read all events
+    // Read all events (with propose_username, status_name, and category_name)
     public function read() {
-        $query = "SELECT * FROM " . $this->table_name;
+        $query = "SELECT 
+                    e.event_id,
+                    u.username AS propose_user_id,  -- Replace propose_user_id with username
+                    e.title,
+                    e.date_add,
+                    c.category_name AS category_id,  -- Replace category_id with category_name
+                    e.description,
+                    e.poster,
+                    e.location,
+                    e.place,
+                    e.quota,
+                    e.date_start,
+                    e.date_end,
+                    e.updated,
+                    e.admin_user_id,
+                    e.note,
+                    s.status_name AS status        -- Replace status with status_name
+                    FROM " . $this->table_name . " e
+                    LEFT JOIN user u ON e.propose_user_id = u.user_id
+                    LEFT JOIN event_status s ON e.status = s.status_id
+                    LEFT JOIN category c ON e.category_id = c.category_id";
+        
         $stmt = $this->conn->prepare($query);
         $stmt->execute();
         return $stmt;
     }
 
-    // Find event by ID
+    // Find event by ID (with propose_username, status_name, and category_name)
     public function find($event_id) {
-        $query = "SELECT * FROM " . $this->table_name . " WHERE event_id = :event_id";
+        $query = "SELECT 
+                    e.event_id,
+                    u.username AS propose_user_id,  -- Replace propose_user_id with username
+                    e.title,
+                    e.date_add,
+                    c.category_name AS category_id,  -- Added comma here
+                    e.description,
+                    e.poster,
+                    e.location,
+                    e.place,
+                    e.quota,
+                    e.date_start,
+                    e.date_end,
+                    e.updated,
+                    e.admin_user_id,
+                    e.note,
+                    s.status_name AS status         -- No comma after the last selected field
+                    FROM " . $this->table_name . " e
+                    LEFT JOIN user u ON e.propose_user_id = u.user_id
+                    LEFT JOIN event_status s ON e.status = s.status_id
+                    LEFT JOIN category c ON e.category_id = c.category_id
+                    WHERE e.event_id = :event_id";
+        
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':event_id', $event_id);
         $stmt->execute();
@@ -96,6 +139,7 @@ class Event {
                       place = :place, quota = :quota, date_start = :date_start, date_end = :date_end, 
                       status = :status, note = :note, updated = NOW() 
                   WHERE event_id = :event_id";
+        
         $stmt = $this->conn->prepare($query);
 
         // sanitize input
