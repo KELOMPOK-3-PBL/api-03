@@ -13,19 +13,19 @@ $event_id = isset($_GET['event_id']) ? $_GET['event_id'] : null;
 switch ($request_method) {
     case 'GET':
         if ($event_id) {
-            $eventController->getEventById($event_id);
+            $eventController->show($event_id);
         } else {
-            $eventController->getAllEvents();
+            $eventController->index();
         }
         break;
 
     case 'POST':
-        $eventController->createEvent();
+        $eventController->create();
         break;
 
     case 'PUT':
         if ($event_id) {
-            $eventController->updateEvent($event_id);
+            $eventController->update($event_id);
         } else {
             header("HTTP/1.0 400 Bad Request"); // Missing event_id
             echo json_encode([
@@ -37,7 +37,7 @@ switch ($request_method) {
 
     case 'DELETE':
         if ($event_id) {
-            $eventController->deleteEvent($event_id);
+            $eventController->destroy($event_id);
         } else {
             header("HTTP/1.0 400 Bad Request"); // Missing event_id
             echo json_encode([
