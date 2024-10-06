@@ -7,7 +7,7 @@ class EventController {
     }
 
     // Get all events
-    public function index() {
+    public function getAllEvents() {
         $query = "SELECT * FROM event";
         $stmt = $this->db->prepare($query);
         $stmt->execute();
@@ -22,7 +22,7 @@ class EventController {
     }
 
     // Get a single event
-    public function show($event_id) {
+    public function getEventById($event_id) {
         $query = "SELECT * FROM event WHERE id = ?";
         $stmt = $this->db->prepare($query);
         $stmt->execute([$event_id]);
@@ -46,7 +46,7 @@ class EventController {
     }
 
     // Create a new event
-    public function create() {
+    public function createEvent() {
         $data = json_decode(file_get_contents("php://input"));
 
         // Prepare SQL statement
@@ -84,7 +84,7 @@ class EventController {
     }
 
     // Update an existing event
-    public function update($event_id) {
+    public function updateEvent($event_id) {
         $data = json_decode(file_get_contents("php://input"));
 
         // Prepare SQL statement
@@ -121,7 +121,7 @@ class EventController {
     }
 
     // Delete an event
-    public function destroy($event_id) {
+    public function deleteEvent($event_id) {
         $stmt = $this->db->prepare("DELETE FROM event WHERE id = ?");
         
         if ($stmt->execute([$event_id])) {
