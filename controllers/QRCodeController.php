@@ -19,25 +19,31 @@ class QRCodeController {
     // Generate QR code for event registration
     public function registerUserForEvent($event_id, $user_id) {
         header("Content-Type: application/json; charset=UTF-8");
-
+    
         // Check event quota
         $event_query = "SELECT COUNT(*) as count FROM event_registration WHERE event_id = :event_id";
         $stmt = $this->conn->prepare($event_query);
         $stmt->bindParam(':event_id', $event_id);
         $stmt->execute();
         $registered_count = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
-
+    
         $quota_query = "SELECT quota FROM event WHERE event_id = :event_id";
         $stmt = $this->conn->prepare($quota_query);
         $stmt->bindParam(':event_id', $event_id);
         $stmt->execute();
         $event_quota = $stmt->fetch(PDO::FETCH_ASSOC)['quota'];
-
+    
         if ($registered_count < $event_quota) {
+            // Create event-specific QR code directory
+            $qr_code_directory = 'qrcodes/event_' . $event_id;
+            if (!is_dir($qr_code_directory)) {
+                mkdir($qr_code_directory, 0755, true); // Create directory if it does not exist
+            }
+    
             // Generate QR code
             $qr_data = $event_id . "_" . $user_id;
-            $qr_code_path = 'qrcodes/' . $qr_data . '.png';
-
+            $qr_code_path = $qr_code_directory . '/' . $qr_data . '.png'; // Save in the event-specific folder
+    
             try {
                 // Generate the QR code
                 $result = Builder::create()
@@ -48,17 +54,17 @@ class QRCodeController {
                     ->margin(10)
                     ->writer(new PngWriter())
                     ->build();
-
+    
                 // Save QR code to file
                 $result->saveToFile($qr_code_path);
-
+    
                 // Register user for event
                 $insert_query = "INSERT INTO event_registration (event_id, user_id, qr_code) VALUES (:event_id, :user_id, :qr_code)";
                 $stmt = $this->conn->prepare($insert_query);
                 $stmt->bindParam(':event_id', $event_id);
                 $stmt->bindParam(':user_id', $user_id);
                 $stmt->bindParam(':qr_code', $qr_code_path);
-
+    
                 if ($stmt->execute()) {
                     echo json_encode([
                         'status' => 'success',
@@ -75,7 +81,6 @@ class QRCodeController {
             echo json_encode(['status' => 'error', 'message' => 'Event quota reached.'], JSON_PRETTY_PRINT);
         }
     }
-
     // Get registered users and their attendance status
     public function getRegisteredUsers($event_id) {
         header("Content-Type: application/json; charset=UTF-8");
