@@ -9,6 +9,7 @@ $eventController = new EventController($db);
 // Handle HTTP methods
 $request_method = $_SERVER["REQUEST_METHOD"];
 $event_id = isset($_GET['event_id']) ? $_GET['event_id'] : null;
+$user_role = isset($_GET['user_role']) ? $_GET['user_role'] : null; // Extract user role from query parameter
 
 switch ($request_method) {
     case 'GET':
@@ -20,12 +21,30 @@ switch ($request_method) {
         break;
 
     case 'POST':
-        $eventController->createEvent();
+        // Pass user role to createEvent method
+        if ($user_role) {
+            $eventController->createEvent($user_role);
+        } else {
+            header("HTTP/1.0 400 Bad Request"); // Missing user role
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Missing user role.'
+            ], JSON_PRETTY_PRINT);
+        }
         break;
 
     case 'PUT':
         if ($event_id) {
-            $eventController->updateEvent($event_id);
+            // Pass user role to updateEvent method
+            if ($user_role) {
+                $eventController->updateEvent($event_id, $user_role);
+            } else {
+                header("HTTP/1.0 400 Bad Request"); // Missing user role
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => 'Missing user role.'
+                ], JSON_PRETTY_PRINT);
+            }
         } else {
             header("HTTP/1.0 400 Bad Request"); // Missing event_id
             echo json_encode([

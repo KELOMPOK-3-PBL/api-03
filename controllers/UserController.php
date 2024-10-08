@@ -16,14 +16,23 @@ class UserController {
         $this->conn = $db;
     }
 
+    // Function to set JSON headers and CORS headers
+    private function setHeaders() {
+        header("Content-Type: application/json; charset=UTF-8");
+        header("Access-Control-Allow-Origin: *"); // Allow all domains
+        header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE");
+        header("Access-Control-Allow-Headers: Content-Type, Authorization");
+        header("Access-Control-Max-Age: 3600"); // Cache duration for CORS preflight requests
+    }
+
     // List all users
     public function getAllUser() {
+        $this->setHeaders(); // Set headers
         $query = "SELECT * FROM " . $this->table_name;
         $stmt = $this->conn->prepare($query);
         $stmt->execute();
         $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        header('Content-Type: application/json');
         echo json_encode([
             'status' => 'success',
             'data' => $users
@@ -32,13 +41,13 @@ class UserController {
 
     // Get a specific user by ID
     public function getUserById($id) {
+        $this->setHeaders(); // Set headers
         $query = "SELECT * FROM " . $this->table_name . " WHERE user_id = :user_id";
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':user_id', $id);
         $stmt->execute();
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        header('Content-Type: application/json');
         if ($user) {
             echo json_encode([
                 'status' => 'success',
@@ -55,16 +64,17 @@ class UserController {
 
     // Create a new user
     public function createUser() {
+        $this->setHeaders(); // Set headers
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if (strpos($_SERVER['CONTENT_TYPE'], 'application/json') !== false) {
                 $data = json_decode(file_get_contents("php://input"), true);
             } else {
                 $data = $_POST;
             }
-    
+
             // Log the incoming data for debugging
             error_log("Incoming Data: " . print_r($data, true)); // Log all incoming data
-    
+
             // Check if 'role' exists and is not empty
             if (empty($data['role'])) {
                 header("HTTP/1.0 400 Bad Request");
@@ -91,7 +101,6 @@ class UserController {
                 'role' => $this->role,
             ], true)); // Log assigned values
             
-            header('Content-Type: application/json');
             if ($this->create()) {
                 echo json_encode([
                     'status' => 'success',
@@ -139,6 +148,7 @@ class UserController {
 
     // Update an existing user
     public function updateUser($user_id) {
+        $this->setHeaders(); // Set headers
         if ($_SERVER['REQUEST_METHOD'] == 'PUT') {
             parse_str(file_get_contents("php://input"), $_PUT);
             
@@ -149,7 +159,6 @@ class UserController {
             $this->about = htmlspecialchars(strip_tags($_PUT['about'] ?? ''));
             $this->role = htmlspecialchars(strip_tags($_PUT['role'] ?? ''));
 
-            header('Content-Type: application/json');
             if ($this->update()) {
                 echo json_encode([
                     'status' => 'success',
@@ -184,8 +193,8 @@ class UserController {
 
     // Delete a user
     public function deleteUser($user_id) {
+        $this->setHeaders(); // Set headers
         if ($_SERVER['REQUEST_METHOD'] == 'DELETE') {
-            header('Content-Type: application/json');
             if ($this->delete($user_id)) {
                 echo json_encode([
                     'status' => 'success',
