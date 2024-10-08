@@ -35,7 +35,7 @@ class QRCodeController {
     
         if ($registered_count < $event_quota) {
             // Create event-specific QR code directory
-            $qr_code_directory = 'qrcodes/event_' . $event_id;
+            $qr_code_directory = '../qrcodes/event_' . $event_id;
             if (!is_dir($qr_code_directory)) {
                 mkdir($qr_code_directory, 0755, true); // Create directory if it does not exist
             }
