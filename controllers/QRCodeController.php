@@ -1,4 +1,5 @@
 <?php
+<<<<<<< HEAD
 // Include Composer's autoload file
 require_once '../vendor/autoload.php'; // Ensure the path is correct
 require_once '../config/database.php';
@@ -11,11 +12,19 @@ use Endroid\QrCode\Writer\PngWriter;
 class QRCodeController {
     private $conn;
     private $table_name = "event_registration"; // Assuming event_registration table exists
+=======
+require_once '../config/database.php';
+
+class EventRegistrationController {
+    private $conn;
+    private $table_name = "event_registration";
+>>>>>>> 22089e1 (fix cors on login routes)
 
     public function __construct($db) {
         $this->conn = $db;
     }
 
+<<<<<<< HEAD
     // Generate QR code for event registration
     public function registerUserForEvent($event_id, $user_id) {
         header("Content-Type: application/json; charset=UTF-8");
@@ -176,3 +185,34 @@ class QRCodeController {
     }
 }
 ?>
+=======
+    // User registers for an event
+    public function registerUserForEvent($event_id, $user_id) {
+        header("Content-Type: application/json; charset=UTF-8");
+
+        // Check if the user is already registered
+        $check_query = "SELECT * FROM event_registration WHERE event_id = :event_id AND user_id = :user_id";
+        $stmt = $this->conn->prepare($check_query);
+        $stmt->bindParam(':event_id', $event_id);
+        $stmt->bindParam(':user_id', $user_id);
+        $stmt->execute();
+
+        if ($stmt->rowCount() > 0) {
+            echo json_encode(['status' => 'error', 'message' => 'User already registered.'], JSON_PRETTY_PRINT);
+            return;
+        }
+
+        // Register user for the event
+        $insert_query = "INSERT INTO event_registration (event_id, user_id) VALUES (:event_id, :user_id)";
+        $stmt = $this->conn->prepare($insert_query);
+        $stmt->bindParam(':event_id', $event_id);
+        $stmt->bindParam(':user_id', $user_id);
+
+        if ($stmt->execute()) {
+            echo json_encode(['status' => 'success', 'message' => 'User registered successfully.'], JSON_PRETTY_PRINT);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Failed to register user.'], JSON_PRETTY_PRINT);
+        }
+    }
+}
+>>>>>>> 22089e1 (fix cors on login routes)

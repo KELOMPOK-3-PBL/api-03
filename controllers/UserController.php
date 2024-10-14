@@ -19,7 +19,11 @@ class UserController {
     // Function to set JSON headers and CORS headers
     private function setHeaders() {
         header("Content-Type: application/json; charset=UTF-8");
+<<<<<<< HEAD
         header("Access-Control-Allow-Origin: *"); // Allow all domains
+=======
+        // header("Access-Control-Allow-Origin: *"); // Allow all domains
+>>>>>>> 22089e1 (fix cors on login routes)
         header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE");
         header("Access-Control-Allow-Headers: Content-Type, Authorization");
         header("Access-Control-Max-Age: 3600"); // Cache duration for CORS preflight requests

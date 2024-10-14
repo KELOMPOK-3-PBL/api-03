@@ -9,7 +9,11 @@ class EventController {
     // Function to set JSON header
     private function setHeaders() {
         header("Content-Type: application/json; charset=UTF-8");
+<<<<<<< HEAD
         header("Access-Control-Allow-Origin: *");
+=======
+        // header("Access-Control-Allow-Origin: *");
+>>>>>>> 22089e1 (fix cors on login routes)
         header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE");
         header("Access-Control-Allow-Headers: Content-Type, Authorization");
         header("Access-Control-Max-Age: 3600");

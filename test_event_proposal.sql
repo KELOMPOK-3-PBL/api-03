@@ -62,7 +62,10 @@ CREATE TABLE IF NOT EXISTS `event_registration` (
   `registration_id` int NOT NULL AUTO_INCREMENT,
   `event_id` int NOT NULL,
   `user_id` int NOT NULL,
+<<<<<<< HEAD
   `qr_code` varchar(255) DEFAULT NULL,
+=======
+>>>>>>> 22089e1 (fix cors on login routes)
   `is_present` tinyint(1) DEFAULT '0',
   `registration_time` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`registration_id`),
@@ -70,7 +73,11 @@ CREATE TABLE IF NOT EXISTS `event_registration` (
   KEY `user_id` (`user_id`),
   CONSTRAINT `event_registration_ibfk_1` FOREIGN KEY (`event_id`) REFERENCES `event` (`event_id`),
   CONSTRAINT `event_registration_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`)
+<<<<<<< HEAD
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+=======
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+>>>>>>> 22089e1 (fix cors on login routes)
 
 -- Data exporting was unselected.
 
@@ -104,7 +111,11 @@ CREATE TABLE IF NOT EXISTS `user` (
   `about` text,
   `role` enum('Member','Propose','Admin','Superadmin') NOT NULL,
   PRIMARY KEY (`user_id`)
+<<<<<<< HEAD
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+=======
+) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+>>>>>>> 22089e1 (fix cors on login routes)
 
 -- Data exporting was unselected.
 
