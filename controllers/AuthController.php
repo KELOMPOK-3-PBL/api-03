@@ -1,7 +1,7 @@
 <?php
 session_start();
 
-require_once 'database.php'; // Include your database connection file
+require_once '../config/database.php'; // Include your database connection file
 
 class AuthController {
     private $db;
@@ -13,7 +13,7 @@ class AuthController {
     // Function to set JSON headers and CORS headers
     private function setHeaders() {
         header("Content-Type: application/json; charset=UTF-8");
-        header("Access-Control-Allow-Origin: http://localhost:61171"); // Replace with actual frontend URL
+        header("Access-Control-Allow-Origin: http://localhost:50581"); // Replace with actual frontend URL
         header("Access-Control-Allow-Credentials: true");
         header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
         header("Access-Control-Allow-Headers: Content-Type, Authorization");

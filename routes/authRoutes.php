@@ -4,7 +4,7 @@ require_once '../config/database.php';
 
 // Handle preflight request (OPTIONS)
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    header("Access-Control-Allow-Origin: http://localhost:61171"); // Use your frontend's exact origin
+    header("Access-Control-Allow-Origin: http://localhost:50581"); // Use your frontend's exact origin
     header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
     header("Access-Control-Allow-Headers: Content-Type, Authorization");
     header("Access-Control-Allow-Credentials: true");

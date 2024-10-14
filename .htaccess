@@ -8,11 +8,9 @@ RewriteRule ^events/([0-9]+)/?$ routes/eventRoutes.php?event_id=$1 [NC,L]
 # For users
 RewriteRule ^users/?$ routes/userRoutes.php [NC,L]
 RewriteRule ^users/([0-9]+)/?$ routes/userRoutes.php?user_id=$1 [NC,L]
-<<<<<<< HEAD
-=======
 
 # Redirect all requests to index.php
 #RewriteCond %{REQUEST_FILENAME} !-f
 #RewriteCond %{REQUEST_FILENAME} !-d
 #RewriteRule ^(.*)$ authRoutes.php [QSA,L]
->>>>>>> 22089e1 (fix cors on login routes)
+
