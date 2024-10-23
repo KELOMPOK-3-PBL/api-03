@@ -15,6 +15,18 @@ class EventController {
         header("Access-Control-Max-Age: 3600");
     }
 
+    // Get user role by user ID
+    private function getUserRole($userId) {
+        $stmt = $this->db->prepare("
+            SELECT r.role_name 
+            FROM user_roles ur 
+            JOIN roles r ON ur.role_id = r.role_id 
+            WHERE ur.user_id = ?
+        ");
+        $stmt->execute([$userId]);
+        return $stmt->fetchColumn(); // Returns the role name
+    }
+
     // Get all events with optional filters
     public function getAllEvents() {
         $this->setHeaders(); // Set the headers
@@ -43,19 +55,19 @@ class EventController {
                 e.date_start,
                 e.date_end,
                 a.username AS admin_user,
-                es.status_name AS status,
+                s.status_name AS status,
                 e.note
             FROM 
                 event e
             LEFT JOIN user u ON e.propose_user_id = u.user_id
             LEFT JOIN category c ON e.category_id = c.category_id
             LEFT JOIN user a ON e.admin_user_id = a.user_id
-            LEFT JOIN event_status es ON e.status = es.status_id
+            LEFT JOIN status s ON e.status = s.status_id
             WHERE 1=1"; // This allows dynamic filtering
 
         // Add filters if provided
         if ($status) {
-            $query .= " AND es.status_name = :status";
+            $query .= " AND s.status_name = :status";
         }
         if ($category) {
             $query .= " AND c.category_name = :category";
@@ -119,14 +131,14 @@ class EventController {
                 e.date_start,
                 e.date_end,
                 a.username AS admin_user,
-                es.status_name AS status,
+                s.status_name AS status,
                 e.note
             FROM 
                 event e
             LEFT JOIN user u ON e.propose_user_id = u.user_id
             LEFT JOIN category c ON e.category_id = c.category_id
             LEFT JOIN user a ON e.admin_user_id = a.user_id
-            LEFT JOIN event_status es ON e.status = es.status_id
+            LEFT JOIN status s ON e.status = s.status_id
             WHERE e.event_id = ?";
         $stmt = $this->db->prepare($query);
         $stmt->execute([$event_id]);
@@ -150,9 +162,12 @@ class EventController {
     }
 
     // Create a new event
-    public function createEvent($userRole) {
+    public function createEvent($userId) {
         $this->setHeaders(); // Set the headers
         $data = json_decode(file_get_contents("php://input"));
+        
+        // Get the user's role
+        $userRole = $this->getUserRole($userId);
 
         // Check user role
         if ($userRole !== 'Propose') {
@@ -181,7 +196,7 @@ class EventController {
             $data->date_start,
             $data->date_end,
             null, // No admin_user_id initially
-            'proposed' // Set status to 'reviewing'
+            'reviewing' // Set status to 'reviewing'
         ])) {
             echo json_encode([
                 'status' => 'success',
@@ -200,8 +215,11 @@ class EventController {
     }
 
     // Update an existing event
-    public function updateEvent($event_id, $userRole) {
+    public function updateEvent($event_id, $userId) {
         $this->setHeaders(); // Set the headers
+
+        // Get the user's role
+        $userRole = $this->getUserRole($userId);
 
         // Check if user role is Admin or Propose
         if ($userRole !== 'Admin' && $userRole !== 'Propose') {
@@ -233,10 +251,10 @@ class EventController {
             $data->quota,
             $data->date_start,
             $data->date_end,
-            $admin_user_id, // Only set if user is Admin
-            $data->note, // Note from Admin for Propose
-            $status, // Status can be set by Admin or defaults to 'reviewing' for Propose
-            $event_id // Event ID is used to specify which record to update
+            $admin_user_id,
+            $data->note,
+            $status,
+            $event_id
         ])) {
             echo json_encode([
                 'status' => 'success',
@@ -254,24 +272,25 @@ class EventController {
         }
     }
 
-    // Delete an event by ID
-    public function deleteEvent($event_id, $userRole) {
+    // Delete an event
+    public function deleteEvent($event_id, $userId) {
         $this->setHeaders(); // Set the headers
 
-        // Check if user is Admin or Superadmin
-        if ($userRole !== 'Admin' && $userRole !== 'Superadmin') {
+        // Get the user's role
+        $userRole = $this->getUserRole($userId);
+
+        // Check if user role is Admin
+        if ($userRole !== 'Admin') {
             echo json_encode([
                 'status' => 'error',
-                'message' => 'Only admin or superadmin users can delete events.',
+                'message' => 'Only admin users can delete events.',
                 'code' => 403,
                 'data' => null
             ], JSON_PRETTY_PRINT);
             return;
         }
 
-        // Prepare SQL statement
         $stmt = $this->db->prepare("DELETE FROM event WHERE event_id = ?");
-
         if ($stmt->execute([$event_id])) {
             echo json_encode([
                 'status' => 'success',

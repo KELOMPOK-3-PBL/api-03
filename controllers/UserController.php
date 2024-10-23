@@ -37,8 +37,10 @@ class UserController {
         $stmt->execute();
         $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+        // Response handling
         echo json_encode([
-            'status' => 'success',
+            'status' => empty($users) ? 'error' : 'success',
+            'message' => empty($users) ? 'No users found.' : '',
             'data' => $users
         ], JSON_PRETTY_PRINT);
     }
@@ -58,6 +60,7 @@ class UserController {
         $stmt->execute();
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
+        // Response handling
         if ($user) {
             echo json_encode([
                 'status' => 'success',
@@ -78,9 +81,8 @@ class UserController {
 
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $data = json_decode(file_get_contents("php://input"), true);
-            
+
             // Assign data to properties
-            $this->user_id = uniqid();
             $this->username = htmlspecialchars(strip_tags($data['username'] ?? ''));
             $this->email = htmlspecialchars(strip_tags($data['email'] ?? ''));
             $this->password = htmlspecialchars(strip_tags($data['password'] ?? ''));
@@ -88,7 +90,7 @@ class UserController {
             $this->roles = $data['roles'] ?? []; // Array of role_ids
 
             // Log data for debugging
-            error_log("Incoming Data: " . print_r($data, true));
+            // error_log("Incoming Data: " . print_r($data, true));
 
             if ($this->create()) {
                 echo json_encode([
@@ -113,7 +115,9 @@ class UserController {
 
         $stmt->bindParam(":username", $this->username);
         $stmt->bindParam(":email", $this->email);
-        $stmt->bindParam(":password", password_hash($this->password, PASSWORD_BCRYPT));
+        $hashed_password = password_hash($this->password, PASSWORD_BCRYPT);
+        $stmt->bindParam(":password", $hashed_password);
+        // $stmt->bindParam(":password", password_hash($this->password, PASSWORD_BCRYPT));
         $stmt->bindParam(":about", $this->about);
 
         if ($stmt->execute()) {
@@ -175,7 +179,8 @@ class UserController {
         $stmt->bindParam(":user_id", $this->user_id);
         $stmt->bindParam(":username", $this->username);
         $stmt->bindParam(":email", $this->email);
-        $stmt->bindParam(":password", password_hash($this->password, PASSWORD_BCRYPT));
+        $hashed_password = password_hash($this->password, PASSWORD_BCRYPT);
+        $stmt->bindParam(":password", $hashed_password);
         $stmt->bindParam(":about", $this->about);
 
         if ($stmt->execute()) {
