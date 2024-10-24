@@ -15,22 +15,32 @@ class EventController {
         header("Access-Control-Max-Age: 3600");
     }
 
-    // Get user role by user ID
-    private function getUserRole($userId) {
-        $stmt = $this->db->prepare("
-            SELECT r.role_name 
-            FROM user_roles ur 
-            JOIN roles r ON ur.role_id = r.role_id 
-            WHERE ur.user_id = ?
-        ");
-        $stmt->execute([$userId]);
-        return $stmt->fetchColumn(); // Returns the role name
+    // Check user role and return roles or error response
+    public function checkUserRole() {
+        $this->setHeaders(); // Set the headers
+        
+        // Check if the user is logged in
+        if (!isset($_SESSION['user_id'])) {
+            header("HTTP/1.0 403 Forbidden");
+            echo json_encode(['status' => 'error', 'message' => 'User not logged in.'], JSON_PRETTY_PRINT);
+            return false; // Return false to indicate unauthorized access
+        }
+
+        // Get user roles from the session
+        $roles = $_SESSION['roles'] ?? []; // Assuming roles are stored in session during login
+
+        // Return roles if found
+        return $roles;
     }
 
     // Get all events with optional filters
     public function getAllEvents() {
         $this->setHeaders(); // Set the headers
         
+        // Check user role
+        $roles = $this->checkUserRole();
+        if (!$roles) return; // Unauthorized access
+
         // Get filter parameters from the query string
         $status = isset($_GET['status']) ? $_GET['status'] : null;
         $category = isset($_GET['category']) ? $_GET['category'] : null;
@@ -113,64 +123,16 @@ class EventController {
         ], JSON_PRETTY_PRINT);
     }
 
-    // Get a single event by ID with joined user, category, and status
-    public function getEventById($event_id) {
-        $this->setHeaders(); // Set the headers
-        $query = "
-            SELECT 
-                e.event_id,
-                e.title,
-                e.date_add,
-                u.username AS propose_user,
-                c.category_name AS category,
-                e.description,
-                e.poster,
-                e.location,
-                e.place,
-                e.quota,
-                e.date_start,
-                e.date_end,
-                a.username AS admin_user,
-                s.status_name AS status,
-                e.note
-            FROM 
-                event e
-            LEFT JOIN user u ON e.propose_user_id = u.user_id
-            LEFT JOIN category c ON e.category_id = c.category_id
-            LEFT JOIN user a ON e.admin_user_id = a.user_id
-            LEFT JOIN status s ON e.status = s.status_id
-            WHERE e.event_id = ?";
-        $stmt = $this->db->prepare($query);
-        $stmt->execute([$event_id]);
-        
-        $event = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($event) {
-            echo json_encode([
-                'status' => 'success',
-                'message' => 'Event retrieved successfully.',
-                'code' => 200,
-                'data' => $event
-            ], JSON_PRETTY_PRINT);
-        } else {
-            echo json_encode([
-                'status' => 'error',
-                'message' => 'Event not found.',
-                'code' => 404,
-                'data' => null
-            ], JSON_PRETTY_PRINT);
-        }
-    }
-
     // Create a new event
-    public function createEvent($userId) {
+    public function createEvent() {
         $this->setHeaders(); // Set the headers
-        $data = json_decode(file_get_contents("php://input"));
-        
-        // Get the user's role
-        $userRole = $this->getUserRole($userId);
 
         // Check user role
-        if ($userRole !== 'Propose') {
+        $roles = $this->checkUserRole();
+        if (!$roles) return; // Unauthorized access
+
+        // Check if the user has 'Propose' role
+        if (!in_array('Propose', $roles)) {
             echo json_encode([
                 'status' => 'error',
                 'message' => 'Only propose users can create events.',
@@ -179,6 +141,8 @@ class EventController {
             ], JSON_PRETTY_PRINT);
             return;
         }
+
+        $data = json_decode(file_get_contents("php://input"));
 
         // Prepare SQL statement with status as 'reviewing'
         $stmt = $this->db->prepare("INSERT INTO event (propose_user_id, title, date_add, category_id, description, poster, location, place, quota, date_start, date_end, admin_user_id, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
@@ -215,14 +179,15 @@ class EventController {
     }
 
     // Update an existing event
-    public function updateEvent($event_id, $userId) {
+    public function updateEvent($event_id) {
         $this->setHeaders(); // Set the headers
 
-        // Get the user's role
-        $userRole = $this->getUserRole($userId);
+        // Check user role
+        $roles = $this->checkUserRole();
+        if (!$roles) return; // Unauthorized access
 
-        // Check if user role is Admin or Propose
-        if ($userRole !== 'Admin' && $userRole !== 'Propose') {
+        // Check if user has Admin or Propose role
+        if (!in_array('Admin', $roles) && !in_array('Propose', $roles)) {
             echo json_encode([
                 'status' => 'error',
                 'message' => 'Only admin or propose users can update events.',
@@ -235,12 +200,7 @@ class EventController {
         $data = json_decode(file_get_contents("php://input"));
 
         // Prepare SQL statement
-        $stmt = $this->db->prepare("UPDATE event SET title = ?, category_id = ?, description = ?, poster = ?, location = ?, place = ?, quota = ?, date_start = ?, date_end = ?, admin_user_id = ?, note = ?, status = ? WHERE event_id = ?");
-
-        // Admin can set the admin_user_id and the status
-        $admin_user_id = ($userRole === 'Admin') ? $data->admin_user_id : null;
-        $status = ($userRole === 'Admin') ? $data->status : 'reviewing'; // Admin can set any status; Propose sets it to 'reviewing'
-
+        $stmt = $this->db->prepare("UPDATE event SET title = ?, category_id = ?, description = ?, poster = ?, location = ?, place = ?, quota = ?, date_start = ?, date_end = ?, status = ? WHERE event_id = ?");
         if ($stmt->execute([
             $data->title,
             $data->category_id,
@@ -251,9 +211,7 @@ class EventController {
             $data->quota,
             $data->date_start,
             $data->date_end,
-            $admin_user_id,
-            $data->note,
-            $status,
+            $data->status,
             $event_id
         ])) {
             echo json_encode([
@@ -273,14 +231,15 @@ class EventController {
     }
 
     // Delete an event
-    public function deleteEvent($event_id, $userId) {
+    public function deleteEvent($event_id) {
         $this->setHeaders(); // Set the headers
 
-        // Get the user's role
-        $userRole = $this->getUserRole($userId);
+        // Check user role
+        $roles = $this->checkUserRole();
+        if (!$roles) return; // Unauthorized access
 
-        // Check if user role is Admin
-        if ($userRole !== 'Admin') {
+        // Check if user has Admin role
+        if (!in_array('Admin', $roles)) {
             echo json_encode([
                 'status' => 'error',
                 'message' => 'Only admin users can delete events.',
@@ -290,6 +249,7 @@ class EventController {
             return;
         }
 
+        // Prepare SQL statement
         $stmt = $this->db->prepare("DELETE FROM event WHERE event_id = ?");
         if ($stmt->execute([$event_id])) {
             echo json_encode([

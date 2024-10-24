@@ -24,7 +24,7 @@ class AuthController {
     public function login() {
         $this->setHeaders(); // Set the headers
         $data = json_decode(file_get_contents("php://input"), true);
-
+        
         $email = $data['email'] ?? '';
         $password = $data['password'] ?? '';
 
@@ -43,8 +43,8 @@ class AuthController {
 
         // Check user in the database
         $stmt = $this->db->prepare("SELECT * FROM user WHERE email = ?");
-        $stmt->execute([$email]); // Pass parameters as an array
-        $result = $stmt->fetch(PDO::FETCH_ASSOC); // Fetch the result
+        $stmt->execute([$email]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($result) {
             // Verify password
@@ -52,9 +52,19 @@ class AuthController {
                 // Set session variables
                 $_SESSION['user_id'] = $result['user_id'];
                 $_SESSION['username'] = $result['username'];
-                $_SESSION['role'] = $result['role'];
+                
+                // Fetch roles
+                $roles = explode(',', $result['roles']); // If roles are stored as comma-separated strings
+                $_SESSION['roles'] = $roles; // Store roles in the session
 
-                echo json_encode(['status' => 'success', 'message' => 'Login successful.'], JSON_PRETTY_PRINT);
+                // Send the roles as an array to Flutter
+                echo json_encode([
+                    'status' => 'success',
+                    'message' => 'Login successful.',
+                    'roles' => $roles,
+                    'user_id' => $result['user_id'],
+                    'username' => $result['username']
+                ], JSON_PRETTY_PRINT);
             } else {
                 header("HTTP/1.0 401 Unauthorized");
                 echo json_encode(['status' => 'error', 'message' => 'Incorrect password.'], JSON_PRETTY_PRINT);
@@ -68,7 +78,7 @@ class AuthController {
     // User logout
     public function logout() {
         $this->setHeaders(); // Set the headers
-        session_destroy();
+        session_destroy(); // Destroy session
         echo json_encode(['status' => 'success', 'message' => 'Logout successful.'], JSON_PRETTY_PRINT);
     }
 
