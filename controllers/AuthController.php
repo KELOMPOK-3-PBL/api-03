@@ -27,25 +27,33 @@ class AuthController {
         
         $email = $data['email'] ?? '';
         $password = $data['password'] ?? '';
-
+    
         // Validate input
         if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             header("HTTP/1.0 400 Bad Request");
             echo json_encode(['status' => 'error', 'message' => 'Invalid email format.'], JSON_PRETTY_PRINT);
             return;
         }
-
+    
         if (empty($password)) {
             header("HTTP/1.0 400 Bad Request");
             echo json_encode(['status' => 'error', 'message' => 'Password is required.'], JSON_PRETTY_PRINT);
             return;
         }
-
-        // Check user in the database
-        $stmt = $this->db->prepare("SELECT * FROM user WHERE email = ?");
+    
+        // Check user in the database with roles using JOIN
+        $stmt = $this->db->prepare("
+            SELECT u.user_id, u.username, u.email, u.password, GROUP_CONCAT(r.role_name) AS roles
+            FROM user u
+            LEFT JOIN user_roles ur ON u.user_id = ur.user_id
+            LEFT JOIN roles r ON ur.role_id = r.role_id
+            WHERE u.email = ?
+            GROUP BY u.user_id
+        ");
+        
         $stmt->execute([$email]);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
-
+    
         if ($result) {
             // Verify password
             if (password_verify($password, $result['password'])) {
@@ -53,17 +61,16 @@ class AuthController {
                 $_SESSION['user_id'] = $result['user_id'];
                 $_SESSION['username'] = $result['username'];
                 
-                // Fetch roles
-                $roles = explode(',', $result['roles']); // If roles are stored as comma-separated strings
-                $_SESSION['roles'] = $roles; // Store roles in the session
-
-                // Send the roles as an array to Flutter
+                // Convert comma-separated roles into an array
+                $roles = !empty($result['roles']) ? explode(',', $result['roles']) : [];
+    
+                // Send the roles as an array to Flutter, ordered as user_id, username, roles
                 echo json_encode([
                     'status' => 'success',
                     'message' => 'Login successful.',
-                    'roles' => $roles,
                     'user_id' => $result['user_id'],
-                    'username' => $result['username']
+                    'username' => $result['username'],
+                    'roles' => $roles // roles will now contain the actual role names
                 ], JSON_PRETTY_PRINT);
             } else {
                 header("HTTP/1.0 401 Unauthorized");
@@ -74,6 +81,10 @@ class AuthController {
             echo json_encode(['status' => 'error', 'message' => 'User not found.'], JSON_PRETTY_PRINT);
         }
     }
+    
+
+    
+
 
     // User logout
     public function logout() {
