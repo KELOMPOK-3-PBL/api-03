@@ -120,15 +120,16 @@ CREATE TABLE IF NOT EXISTS `user` (
   `password` varchar(255) NOT NULL,
   `about` text,
   PRIMARY KEY (`user_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Dumping data for table testpbl.user: ~5 rows (approximately)
+-- Dumping data for table testpbl.user: ~6 rows (approximately)
 INSERT INTO `user` (`user_id`, `username`, `email`, `password`, `about`) VALUES
 	(4, 'test1', 'test1@gmail.com', '$2y$10$963z9f2cVKJHQnV7wTBy8O8Au6H9MXmfMe56OOZa4fzT0.1qdMeC2', 'bio'),
 	(5, 'test2', 'test2@gmail.com', '$2y$10$wkOrnTg3HMQSenfmxqTIT.ICuiwJXagzRe0G.ZXeEpraoWosF6ejm', 'bio'),
 	(6, 'test3', 'test3@gmail.com', '$2y$10$iMXjjN1Gx/LX9dISKo4gIun/zMSfW2nKuy4oz7HOrAx667E/Sbs5.', 'bio'),
 	(7, 'test4', 'test4@gmail.com', '$2y$10$Fs.L0rw0ZgpJE9s0Y6zGHu8YDiF.8ftc2086nb2WB6fC3tj/BKRQi', 'bio'),
-	(8, 'test5', 'test5@gmail.com', '$2y$10$lwQlcayaKPL.SQB8pbr0xO1U2lpOE8DdVKnv2ZbBMXZv45mdKiE02', 'bio');
+	(8, 'test5', 'test5@gmail.com', '$2y$10$lwQlcayaKPL.SQB8pbr0xO1U2lpOE8DdVKnv2ZbBMXZv45mdKiE02', 'bio'),
+	(10, 'test6', 'test6@gmail.com', '$2y$10$fgx.rgMkjihgZd1JsSFTVOPxptu5Esq6hcmeVfKkxl3VMbdif5Bcu', 'bio');
 
 -- Dumping structure for table testpbl.user_roles
 CREATE TABLE IF NOT EXISTS `user_roles` (
@@ -141,7 +142,7 @@ CREATE TABLE IF NOT EXISTS `user_roles` (
   CONSTRAINT `user_roles_ibfk_2` FOREIGN KEY (`role_id`) REFERENCES `roles` (`role_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Dumping data for table testpbl.user_roles: ~10 rows (approximately)
+-- Dumping data for table testpbl.user_roles: ~11 rows (approximately)
 INSERT INTO `user_roles` (`user_id`, `role_id`) VALUES
 	(4, 1),
 	(4, 2),
@@ -152,7 +153,8 @@ INSERT INTO `user_roles` (`user_id`, `role_id`) VALUES
 	(7, 1),
 	(7, 2),
 	(8, 1),
-	(8, 2);
+	(8, 2),
+	(10, 4);
 
 /*!40103 SET TIME_ZONE=IFNULL(@OLD_TIME_ZONE, 'system') */;
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;
