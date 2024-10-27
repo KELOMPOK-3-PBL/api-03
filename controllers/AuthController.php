@@ -63,12 +63,14 @@ class AuthController {
                 
                 // Convert comma-separated roles into an array
                 $roles = !empty($result['roles']) ? explode(',', $result['roles']) : [];
-    
-                // Send the roles as an array to Flutter, ordered as user_id, username, roles
+                $_SESSION['roles'] = $roles; // Store roles in session
+                setcookie('username', $result['username'], time() + (86400 * 30), "/"); // Set cookie for username
+                setcookie('roles', json_encode($roles), time() + (86400 * 30), "/"); // Set cookie for roles
+
+                // Send success response without user ID
                 echo json_encode([
                     'status' => 'success',
                     'message' => 'Login successful.',
-                    'user_id' => $result['user_id'],
                     'username' => $result['username'],
                     'roles' => $roles // roles will now contain the actual role names
                 ], JSON_PRETTY_PRINT);
@@ -81,15 +83,13 @@ class AuthController {
             echo json_encode(['status' => 'error', 'message' => 'User not found.'], JSON_PRETTY_PRINT);
         }
     }
-    
-
-    
-
 
     // User logout
     public function logout() {
         $this->setHeaders(); // Set the headers
         session_destroy(); // Destroy session
+        setcookie('username', '', time() - 3600, "/"); // Clear cookie
+        setcookie('roles', '', time() - 3600, "/"); // Clear cookie
         echo json_encode(['status' => 'success', 'message' => 'Logout successful.'], JSON_PRETTY_PRINT);
     }
 

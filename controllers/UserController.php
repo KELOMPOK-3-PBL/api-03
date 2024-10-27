@@ -1,4 +1,6 @@
 <?php
+session_start();
+
 include_once '../config/database.php';
 
 class UserController {
@@ -24,30 +26,63 @@ class UserController {
         header("Access-Control-Max-Age: 3600");
     }
 
-    // List all users with their roles
-    public function getAllUser() {
-        $this->setHeaders();
-
-        $query = "SELECT u.*, GROUP_CONCAT(r.role_name) as roles 
-                  FROM " . $this->table_name . " u
-                  LEFT JOIN user_roles ur ON u.user_id = ur.user_id
-                  LEFT JOIN roles r ON ur.role_id = r.role_id
-                  GROUP BY u.user_id";
-        $stmt = $this->conn->prepare($query);
-        $stmt->execute();
-        $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        // Response handling
-        echo json_encode([
-            'status' => empty($users) ? 'error' : 'success',
-            'message' => empty($users) ? 'No users found.' : '',
-            'data' => $users
-        ], JSON_PRETTY_PRINT);
+    // List all users (only accessible by Superadmin)
+// List all users (only accessible by Superadmin)
+public function getAllUsers() {
+    $this->setHeaders();
+    
+    // Check user role
+    $roles = $this->checkUserRole();
+    if (!in_array('Superadmin', $roles)) {
+        header("HTTP/1.0 403 Forbidden");
+        echo json_encode(['status' => 'error', 'message' => 'Only superadmin can access this resource.'], JSON_PRETTY_PRINT);
+        return;
     }
 
-    // Get a specific user by ID with roles
+    // Get search query if present
+    $search = isset($_GET['search']) ? htmlspecialchars(strip_tags($_GET['search'])) : '';
+
+    // Prepare the query with optional search condition
+    $query = "SELECT u.*, GROUP_CONCAT(r.role_name) as roles 
+              FROM " . $this->table_name . " u
+              LEFT JOIN user_roles ur ON u.user_id = ur.user_id
+              LEFT JOIN roles r ON ur.role_id = r.role_id";
+
+    if (!empty($search)) {
+        $query .= " WHERE u.username LIKE :search OR u.email LIKE :search";
+    }
+
+    $query .= " GROUP BY u.user_id";
+    $stmt = $this->conn->prepare($query);
+
+    // Bind the search parameter if it exists
+    if (!empty($search)) {
+        $searchParam = '%' . $search . '%'; // For partial matches
+        $stmt->bindParam(':search', $searchParam);
+    }
+
+    $stmt->execute();
+    $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    echo json_encode([
+        'status' => empty($users) ? 'error' : 'success',
+        'message' => empty($users) ? 'No users found.' : '',
+        'data' => $users
+    ], JSON_PRETTY_PRINT);
+}
+
+
+    // Get a specific user by ID (accessible by Superadmin and the Member themselves)
     public function getUserById($id) {
         $this->setHeaders();
+
+        // Check user role
+        $roles = $this->checkUserRole();
+        if (!in_array('Superadmin', $roles) && $_SESSION['user_id'] != $id) {
+            header("HTTP/1.0 403 Forbidden");
+            echo json_encode(['status' => 'error', 'message' => 'Unauthorized access.'], JSON_PRETTY_PRINT);
+            return;
+        }
 
         $query = "SELECT u.*, GROUP_CONCAT(r.role_name) as roles 
                   FROM " . $this->table_name . " u
@@ -60,7 +95,6 @@ class UserController {
         $stmt->execute();
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        // Response handling
         if ($user) {
             echo json_encode([
                 'status' => 'success',
@@ -75,22 +109,24 @@ class UserController {
         }
     }
 
-    // Create a new user with roles
+    // Create a new user with roles (only accessible by Superadmin)
     public function createUser() {
         $this->setHeaders();
 
+        $roles = $this->checkUserRole();
+        if (!in_array('Superadmin', $roles)) {
+            header("HTTP/1.0 403 Forbidden");
+            echo json_encode(['status' => 'error', 'message' => 'Only superadmin can create users.'], JSON_PRETTY_PRINT);
+            return;
+        }
+
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $data = json_decode(file_get_contents("php://input"), true);
-
-            // Assign data to properties
             $this->username = htmlspecialchars(strip_tags($data['username'] ?? ''));
             $this->email = htmlspecialchars(strip_tags($data['email'] ?? ''));
             $this->password = htmlspecialchars(strip_tags($data['password'] ?? ''));
             $this->about = htmlspecialchars(strip_tags($data['about'] ?? ''));
-            $this->roles = $data['roles'] ?? []; // Array of role_ids
-
-            // Log data for debugging
-            // error_log("Incoming Data: " . print_r($data, true));
+            $this->roles = $data['roles'] ?? [];
 
             if ($this->create()) {
                 echo json_encode([
@@ -117,7 +153,6 @@ class UserController {
         $stmt->bindParam(":email", $this->email);
         $hashed_password = password_hash($this->password, PASSWORD_BCRYPT);
         $stmt->bindParam(":password", $hashed_password);
-        // $stmt->bindParam(":password", password_hash($this->password, PASSWORD_BCRYPT));
         $stmt->bindParam(":about", $this->about);
 
         if ($stmt->execute()) {
@@ -140,19 +175,25 @@ class UserController {
         return true;
     }
 
-    // Update user details and roles
+    // Update user details and roles (only accessible by Superadmin)
     public function updateUser($user_id) {
         $this->setHeaders();
 
+        $roles = $this->checkUserRole();
+        if (!in_array('Superadmin', $roles)) {
+            header("HTTP/1.0 403 Forbidden");
+            echo json_encode(['status' => 'error', 'message' => 'Only superadmin can update users.'], JSON_PRETTY_PRINT);
+            return;
+        }
+
         if ($_SERVER['REQUEST_METHOD'] == 'PUT') {
             parse_str(file_get_contents("php://input"), $_PUT);
-
             $this->user_id = htmlspecialchars(strip_tags($user_id));
             $this->username = htmlspecialchars(strip_tags($_PUT['username'] ?? ''));
             $this->email = htmlspecialchars(strip_tags($_PUT['email'] ?? ''));
             $this->password = htmlspecialchars(strip_tags($_PUT['password'] ?? ''));
             $this->about = htmlspecialchars(strip_tags($_PUT['about'] ?? ''));
-            $this->roles = $_PUT['roles'] ?? []; // Array of role_ids
+            $this->roles = $_PUT['roles'] ?? [];
 
             if ($this->update()) {
                 echo json_encode([
@@ -184,7 +225,6 @@ class UserController {
         $stmt->bindParam(":about", $this->about);
 
         if ($stmt->execute()) {
-            // Clear existing roles and assign new ones
             $this->clearRoles();
             return $this->assignRoles();
         }
@@ -200,9 +240,16 @@ class UserController {
         $stmt->execute();
     }
 
-    // Delete user
+    // Delete user (only accessible by Superadmin)
     public function deleteUser($user_id) {
         $this->setHeaders();
+
+        $roles = $this->checkUserRole();
+        if (!in_array('Superadmin', $roles)) {
+            header("HTTP/1.0 403 Forbidden");
+            echo json_encode(['status' => 'error', 'message' => 'Only superadmin can delete users.'], JSON_PRETTY_PRINT);
+            return;
+        }
 
         if ($_SERVER['REQUEST_METHOD'] == 'DELETE') {
             if ($this->delete($user_id)) {
@@ -220,6 +267,7 @@ class UserController {
         }
     }
 
+    // Delete user in the database
     private function delete($user_id) {
         // First delete user roles
         $this->clearRoles();
@@ -233,5 +281,11 @@ class UserController {
 
         return $stmt->execute();
     }
+
+    // Check user roles from the session
+    private function checkUserRole() {
+        // Assuming roles are stored in the session as an array
+        return $_SESSION['roles'] ?? [];
+    }
 }
-?>
+

@@ -16,7 +16,7 @@ switch ($request_method) {
         if ($user_id) {
             $userController->getUserById($user_id);  // GET a specific user
         } else {
-            $userController->getAllUser();  // GET all users
+            $userController->getAllUsers();  // GET all users
         }
         break;
 

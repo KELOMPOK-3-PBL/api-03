@@ -1,12 +1,15 @@
 <?php
+session_start(); // Make sure to start the session
+
 class EventController {
     private $db;
+    private $baseUrl = "http://localhost:80/pbl"; // Base URL for images
 
     public function __construct($db) {
         $this->db = $db;
     }
 
-    // Function to set JSON header
+    // Function to set JSON headers and CORS headers
     private function setHeaders() {
         header("Content-Type: application/json; charset=UTF-8");
         header("Access-Control-Allow-Origin: *");
@@ -18,7 +21,7 @@ class EventController {
     // Check user role and return roles or error response
     public function checkUserRole() {
         $this->setHeaders(); // Set the headers
-        
+
         // Check if the user is logged in
         if (!isset($_SESSION['user_id'])) {
             header("HTTP/1.0 403 Forbidden");
@@ -115,6 +118,14 @@ class EventController {
         
         // Fetch the events
         $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Update the poster URLs
+        foreach ($events as &$event) {
+            if ($event['poster']) {
+                $event['poster'] = $this->baseUrl . '/image/poster/' . $event['poster']; // Full URL for the poster
+            }
+        }
+
         echo json_encode([
             'status' => 'success',
             'message' => 'Events retrieved successfully.',
@@ -144,6 +155,41 @@ class EventController {
 
         $data = json_decode(file_get_contents("php://input"));
 
+        // Handle file upload for the poster image
+        $posterPath = null;
+
+        if (isset($_FILES['poster'])) {
+            $file = $_FILES['poster'];
+            $filename = $this->generateUniqueFilename($file['name']); // Generate unique filename
+            $targetDir = "image/poster/";
+            $targetFile = $targetDir . basename($filename);
+
+            // Check file type
+            $fileType = strtolower(pathinfo($targetFile, PATHINFO_EXTENSION));
+            if (in_array($fileType, ['jpg', 'jpeg', 'png'])) {
+                // Move the uploaded file to the target directory
+                if (move_uploaded_file($file['tmp_name'], $targetFile)) {
+                    $posterPath = $filename; // Save filename for database
+                } else {
+                    echo json_encode([
+                        'status' => 'error',
+                        'message' => 'Error uploading file.',
+                        'code' => 500,
+                        'data' => null
+                    ], JSON_PRETTY_PRINT);
+                    return;
+                }
+            } else {
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => 'Only JPG, JPEG, and PNG files are allowed.',
+                    'code' => 400,
+                    'data' => null
+                ], JSON_PRETTY_PRINT);
+                return;
+            }
+        }
+
         // Prepare SQL statement with status as 'reviewing'
         $stmt = $this->db->prepare("INSERT INTO event (propose_user_id, title, date_add, category_id, description, poster, location, place, quota, date_start, date_end, admin_user_id, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
@@ -153,7 +199,7 @@ class EventController {
             $data->date_add,
             $data->category_id,
             $data->description,
-            $data->poster,
+            $posterPath, // Use the generated filename
             $data->location,
             $data->place,
             $data->quota,
@@ -178,6 +224,15 @@ class EventController {
         }
     }
 
+    // Generate a unique filename for the uploaded image
+    private function generateUniqueFilename($filename) {
+        $pathInfo = pathinfo($filename);
+        $extension = $pathInfo['extension'];
+        $baseName = $pathInfo['filename'];
+        $uniqueName = $baseName . '_' . time(); // Append current timestamp for uniqueness
+        return $uniqueName . '.' . $extension; // Return new unique filename
+    }
+
     // Update an existing event
     public function updateEvent($event_id) {
         $this->setHeaders(); // Set the headers
@@ -199,13 +254,48 @@ class EventController {
 
         $data = json_decode(file_get_contents("php://input"));
 
+        // Handle file upload for the poster image
+        $posterPath = null;
+
+        if (isset($_FILES['poster'])) {
+            $file = $_FILES['poster'];
+            $filename = $this->generateUniqueFilename($file['name']); // Generate unique filename
+            $targetDir = "image/poster/";
+            $targetFile = $targetDir . basename($filename);
+
+            // Check file type
+            $fileType = strtolower(pathinfo($targetFile, PATHINFO_EXTENSION));
+            if (in_array($fileType, ['jpg', 'jpeg', 'png'])) {
+                // Move the uploaded file to the target directory
+                if (move_uploaded_file($file['tmp_name'], $targetFile)) {
+                    $posterPath = $filename; // Save filename for database
+                } else {
+                    echo json_encode([
+                        'status' => 'error',
+                        'message' => 'Error uploading file.',
+                        'code' => 500,
+                        'data' => null
+                    ], JSON_PRETTY_PRINT);
+                    return;
+                }
+            } else {
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => 'Only JPG, JPEG, and PNG files are allowed.',
+                    'code' => 400,
+                    'data' => null
+                ], JSON_PRETTY_PRINT);
+                return;
+            }
+        }
+
         // Prepare SQL statement
         $stmt = $this->db->prepare("UPDATE event SET title = ?, category_id = ?, description = ?, poster = ?, location = ?, place = ?, quota = ?, date_start = ?, date_end = ?, status = ? WHERE event_id = ?");
         if ($stmt->execute([
             $data->title,
             $data->category_id,
             $data->description,
-            $data->poster,
+            $posterPath !== null ? $posterPath : $data->poster, // Use new poster if uploaded, else keep old
             $data->location,
             $data->place,
             $data->quota,
