@@ -1,9 +1,9 @@
 <?php
-session_start(); // Make sure to start the session
+session_start();
 
 class EventController {
     private $db;
-    private $baseUrl = "http://localhost:80/pbl"; // Base URL for images
+    // private $baseUrl = "http://localhost:80/pbl"; // Base URL for images
 
     public function __construct($db) {
         $this->db = $db;
@@ -20,39 +20,32 @@ class EventController {
 
     // Check user role and return roles or error response
     public function checkUserRole() {
-        $this->setHeaders(); // Set the headers
+        $this->setHeaders();
 
-        // Check if the user is logged in
         if (!isset($_SESSION['user_id'])) {
             header("HTTP/1.0 403 Forbidden");
             echo json_encode(['status' => 'error', 'message' => 'User not logged in.'], JSON_PRETTY_PRINT);
-            return false; // Return false to indicate unauthorized access
+            return false;
         }
 
-        // Get user roles from the session
-        $roles = $_SESSION['roles'] ?? []; // Assuming roles are stored in session during login
-
-        // Return roles if found
+        $roles = $_SESSION['roles'] ?? [];
         return $roles;
     }
 
     // Get all events with optional filters
     public function getAllEvents() {
-        $this->setHeaders(); // Set the headers
+        $this->setHeaders();
         
-        // Check user role
         $roles = $this->checkUserRole();
-        if (!$roles) return; // Unauthorized access
+        if (!$roles) return;
 
-        // Get filter parameters from the query string
         $status = isset($_GET['status']) ? $_GET['status'] : null;
         $category = isset($_GET['category']) ? $_GET['category'] : null;
         $dateFrom = isset($_GET['date_from']) ? $_GET['date_from'] : null;
         $dateTo = isset($_GET['date_to']) ? $_GET['date_to'] : null;
-        $sortBy = isset($_GET['sort_by']) ? $_GET['sort_by'] : 'date_add'; // Default sorting by date_add
-        $sortOrder = isset($_GET['sort_order']) ? $_GET['sort_order'] : 'ASC'; // Default sorting in ascending order
+        $sortBy = isset($_GET['sort_by']) ? $_GET['sort_by'] : 'date_add';
+        $sortOrder = isset($_GET['sort_order']) ? $_GET['sort_order'] : 'ASC';
 
-        // Start building the query
         $query = "
             SELECT 
                 e.event_id,
@@ -76,9 +69,8 @@ class EventController {
             LEFT JOIN category c ON e.category_id = c.category_id
             LEFT JOIN user a ON e.admin_user_id = a.user_id
             LEFT JOIN status s ON e.status = s.status_id
-            WHERE 1=1"; // This allows dynamic filtering
+            WHERE 1=1";
 
-        // Add filters if provided
         if ($status) {
             $query .= " AND s.status_name = :status";
         }
@@ -93,13 +85,9 @@ class EventController {
             $query .= " AND e.date_start <= :date_to";
         }
 
-        // Add sorting
         $query .= " ORDER BY e." . $sortBy . " " . $sortOrder;
-
-        // Prepare the query
         $stmt = $this->db->prepare($query);
 
-        // Bind parameters if applicable
         if ($status) {
             $stmt->bindParam(':status', $status);
         }
@@ -113,18 +101,8 @@ class EventController {
             $stmt->bindParam(':date_to', $dateTo);
         }
 
-        // Execute the query
         $stmt->execute();
-        
-        // Fetch the events
         $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        // Update the poster URLs
-        foreach ($events as &$event) {
-            if ($event['poster']) {
-                $event['poster'] = $this->baseUrl . '/image/poster/' . $event['poster']; // Full URL for the poster
-            }
-        }
 
         echo json_encode([
             'status' => 'success',
@@ -136,13 +114,11 @@ class EventController {
 
     // Create a new event
     public function createEvent() {
-        $this->setHeaders(); // Set the headers
+        $this->setHeaders();
 
-        // Check user role
         $roles = $this->checkUserRole();
-        if (!$roles) return; // Unauthorized access
+        if (!$roles) return;
 
-        // Check if the user has 'Propose' role
         if (!in_array('Propose', $roles)) {
             echo json_encode([
                 'status' => 'error',
@@ -155,42 +131,6 @@ class EventController {
 
         $data = json_decode(file_get_contents("php://input"));
 
-        // Handle file upload for the poster image
-        $posterPath = null;
-
-        if (isset($_FILES['poster'])) {
-            $file = $_FILES['poster'];
-            $filename = $this->generateUniqueFilename($file['name']); // Generate unique filename
-            $targetDir = "image/poster/";
-            $targetFile = $targetDir . basename($filename);
-
-            // Check file type
-            $fileType = strtolower(pathinfo($targetFile, PATHINFO_EXTENSION));
-            if (in_array($fileType, ['jpg', 'jpeg', 'png'])) {
-                // Move the uploaded file to the target directory
-                if (move_uploaded_file($file['tmp_name'], $targetFile)) {
-                    $posterPath = $filename; // Save filename for database
-                } else {
-                    echo json_encode([
-                        'status' => 'error',
-                        'message' => 'Error uploading file.',
-                        'code' => 500,
-                        'data' => null
-                    ], JSON_PRETTY_PRINT);
-                    return;
-                }
-            } else {
-                echo json_encode([
-                    'status' => 'error',
-                    'message' => 'Only JPG, JPEG, and PNG files are allowed.',
-                    'code' => 400,
-                    'data' => null
-                ], JSON_PRETTY_PRINT);
-                return;
-            }
-        }
-
-        // Prepare SQL statement with status as 'reviewing'
         $stmt = $this->db->prepare("INSERT INTO event (propose_user_id, title, date_add, category_id, description, poster, location, place, quota, date_start, date_end, admin_user_id, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
         if ($stmt->execute([
@@ -199,14 +139,14 @@ class EventController {
             $data->date_add,
             $data->category_id,
             $data->description,
-            $posterPath, // Use the generated filename
+            $data->poster, // Directly use URL as poster
             $data->location,
             $data->place,
             $data->quota,
             $data->date_start,
             $data->date_end,
-            null, // No admin_user_id initially
-            'reviewing' // Set status to 'reviewing'
+            null,
+            'reviewing'
         ])) {
             echo json_encode([
                 'status' => 'success',
@@ -224,24 +164,13 @@ class EventController {
         }
     }
 
-    // Generate a unique filename for the uploaded image
-    private function generateUniqueFilename($filename) {
-        $pathInfo = pathinfo($filename);
-        $extension = $pathInfo['extension'];
-        $baseName = $pathInfo['filename'];
-        $uniqueName = $baseName . '_' . time(); // Append current timestamp for uniqueness
-        return $uniqueName . '.' . $extension; // Return new unique filename
-    }
-
     // Update an existing event
     public function updateEvent($event_id) {
-        $this->setHeaders(); // Set the headers
+        $this->setHeaders();
 
-        // Check user role
         $roles = $this->checkUserRole();
-        if (!$roles) return; // Unauthorized access
+        if (!$roles) return;
 
-        // Check if user has Admin or Propose role
         if (!in_array('Admin', $roles) && !in_array('Propose', $roles)) {
             echo json_encode([
                 'status' => 'error',
@@ -254,48 +183,12 @@ class EventController {
 
         $data = json_decode(file_get_contents("php://input"));
 
-        // Handle file upload for the poster image
-        $posterPath = null;
-
-        if (isset($_FILES['poster'])) {
-            $file = $_FILES['poster'];
-            $filename = $this->generateUniqueFilename($file['name']); // Generate unique filename
-            $targetDir = "image/poster/";
-            $targetFile = $targetDir . basename($filename);
-
-            // Check file type
-            $fileType = strtolower(pathinfo($targetFile, PATHINFO_EXTENSION));
-            if (in_array($fileType, ['jpg', 'jpeg', 'png'])) {
-                // Move the uploaded file to the target directory
-                if (move_uploaded_file($file['tmp_name'], $targetFile)) {
-                    $posterPath = $filename; // Save filename for database
-                } else {
-                    echo json_encode([
-                        'status' => 'error',
-                        'message' => 'Error uploading file.',
-                        'code' => 500,
-                        'data' => null
-                    ], JSON_PRETTY_PRINT);
-                    return;
-                }
-            } else {
-                echo json_encode([
-                    'status' => 'error',
-                    'message' => 'Only JPG, JPEG, and PNG files are allowed.',
-                    'code' => 400,
-                    'data' => null
-                ], JSON_PRETTY_PRINT);
-                return;
-            }
-        }
-
-        // Prepare SQL statement
         $stmt = $this->db->prepare("UPDATE event SET title = ?, category_id = ?, description = ?, poster = ?, location = ?, place = ?, quota = ?, date_start = ?, date_end = ?, status = ? WHERE event_id = ?");
         if ($stmt->execute([
             $data->title,
             $data->category_id,
             $data->description,
-            $posterPath !== null ? $posterPath : $data->poster, // Use new poster if uploaded, else keep old
+            $data->poster, // Directly use URL as poster
             $data->location,
             $data->place,
             $data->quota,
@@ -322,13 +215,11 @@ class EventController {
 
     // Delete an event
     public function deleteEvent($event_id) {
-        $this->setHeaders(); // Set the headers
+        $this->setHeaders();
 
-        // Check user role
         $roles = $this->checkUserRole();
-        if (!$roles) return; // Unauthorized access
+        if (!$roles) return;
 
-        // Check if user has Admin role
         if (!in_array('Admin', $roles)) {
             echo json_encode([
                 'status' => 'error',
@@ -339,7 +230,6 @@ class EventController {
             return;
         }
 
-        // Prepare SQL statement
         $stmt = $this->db->prepare("DELETE FROM event WHERE event_id = ?");
         if ($stmt->execute([$event_id])) {
             echo json_encode([
