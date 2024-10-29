@@ -1,7 +1,8 @@
 <?php
-session_start();
-
 require_once '../config/database.php'; // Include your database connection file
+require_once '../vendor/autoload.php'; // Include Composer's autoloader
+require_once '../config/jwt_config.php'; // Include your JWT configuration
+use Firebase\JWT\JWT;
 
 class AuthController {
     private $db;
@@ -20,6 +21,20 @@ class AuthController {
         header("Access-Control-Max-Age: 3600");
     }
 
+    // Generate JWT
+    private function generateJWT($userId, $roles) {
+        $issuedAt = time();
+        $expirationTime = $issuedAt + JWT_EXPIRATION_TIME; // Token valid for the configured expiration time
+        $payload = [
+            'user_id' => $userId,
+            'roles' => $roles,
+            'iat' => $issuedAt,
+            'exp' => $expirationTime,
+        ];
+        
+        return JWT::encode($payload, JWT_SECRET, 'HS256');
+    }
+
     // User login
     public function login() {
         $this->setHeaders(); // Set the headers
@@ -27,7 +42,7 @@ class AuthController {
         
         $email = $data['email'] ?? '';
         $password = $data['password'] ?? '';
-    
+
         // Validate input
         if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             header("HTTP/1.0 400 Bad Request");
@@ -40,7 +55,7 @@ class AuthController {
             echo json_encode(['status' => 'error', 'message' => 'Password is required.'], JSON_PRETTY_PRINT);
             return;
         }
-    
+
         // Check user in the database with roles using JOIN
         $stmt = $this->db->prepare("
             SELECT u.user_id, u.username, u.email, u.password, GROUP_CONCAT(r.role_name) AS roles
@@ -53,26 +68,18 @@ class AuthController {
         
         $stmt->execute([$email]);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
-    
+
         if ($result) {
             // Verify password
             if (password_verify($password, $result['password'])) {
-                // Set session variables
-                $_SESSION['user_id'] = $result['user_id'];
-                $_SESSION['username'] = $result['username'];
+                // Create JWT
+                $jwt = $this->generateJWT($result['user_id'], explode(',', $result['roles']));
                 
-                // Convert comma-separated roles into an array
-                $roles = !empty($result['roles']) ? explode(',', $result['roles']) : [];
-                $_SESSION['roles'] = $roles; // Store roles in session
-                setcookie('username', $result['username'], time() + (86400 * 30), "/"); // Set cookie for username
-                setcookie('roles', json_encode($roles), time() + (86400 * 30), "/"); // Set cookie for roles
-
-                // Send success response without user ID
+                // Send success response with JWT
                 echo json_encode([
                     'status' => 'success',
                     'message' => 'Login successful.',
-                    'username' => $result['username'],
-                    'roles' => $roles // roles will now contain the actual role names
+                    'token' => $jwt
                 ], JSON_PRETTY_PRINT);
             } else {
                 header("HTTP/1.0 401 Unauthorized");
@@ -87,9 +94,7 @@ class AuthController {
     // User logout
     public function logout() {
         $this->setHeaders(); // Set the headers
-        session_destroy(); // Destroy session
-        setcookie('username', '', time() - 3600, "/"); // Clear cookie
-        setcookie('roles', '', time() - 3600, "/"); // Clear cookie
+        // JWT logout could be implemented through client-side
         echo json_encode(['status' => 'success', 'message' => 'Logout successful.'], JSON_PRETTY_PRINT);
     }
 
