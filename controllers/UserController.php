@@ -1,8 +1,9 @@
 <?php
 
 include_once '../config/database.php';
-include_once '../config/jwt_config.php'; // Assuming JWT_SECRET is defined here
+require_once '../config/JwtConfig.php'; // Include your JWT configuration
 require_once '../vendor/autoload.php'; // Include Composer's autoloader
+require_once '../helpers/ResponseHelpers.php';
 
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
@@ -79,42 +80,67 @@ class UserController {
 
     public function getAllUsers() {
         $this->setHeaders();
-
         $roles = $this->getRolesFromJWT();
+        
+        // Check for superadmin role
         if (!in_array('Superadmin', $roles)) {
-            header("HTTP/1.0 403 Forbidden");
-            echo json_encode(['status' => 'error', 'message' => 'Only superadmin can access this resource.'], JSON_PRETTY_PRINT);
+            response('error', 'Only superadmin can access this resource.', null, 403);
             return;
         }
-
+    
         $search = isset($_GET['search']) ? htmlspecialchars(strip_tags($_GET['search'])) : '';
-
+        $sort = isset($_GET['sort']) ? htmlspecialchars(strip_tags($_GET['sort'])) : 'username'; // Default to 'username'
+        $order = isset($_GET['order']) && strtolower($_GET['order']) === 'desc' ? 'DESC' : 'ASC'; // Default to 'ASC'
+        $roleFilter = isset($_GET['role']) ? htmlspecialchars(strip_tags($_GET['role'])) : '';
+        
+        // Pagination
+        $limit = isset($_GET['limit']) && is_numeric($_GET['limit']) ? (int)$_GET['limit'] : 5; // Default limit
+        $page = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] : 1; // Default to page 1
+        $offset = ($page - 1) * $limit; // Calculate the offset
+    
+        // Base query to fetch users and their roles
         $query = "SELECT u.*, GROUP_CONCAT(r.role_name) as roles 
                   FROM " . $this->table_name . " u
                   LEFT JOIN user_roles ur ON u.user_id = ur.user_id
                   LEFT JOIN roles r ON ur.role_id = r.role_id";
-
+        
+        // Search and filter conditions
+        $conditions = [];
         if (!empty($search)) {
-            $query .= " WHERE u.username LIKE :search OR u.email LIKE :search";
+            $conditions[] = "(u.username LIKE :search OR u.email LIKE :search)";
         }
-
+        if (!empty($roleFilter)) {
+            $conditions[] = "r.role_name = :role";
+        }
+        if ($conditions) {
+            $query .= " WHERE " . implode(" AND ", $conditions);
+        }
+    
         $query .= " GROUP BY u.user_id";
+        $query .= " ORDER BY $sort $order";
+        $query .= " LIMIT :limit OFFSET :offset"; // Adding LIMIT and OFFSET
+    
         $stmt = $this->conn->prepare($query);
-
+    
+        // Bind parameters for search and role filter
         if (!empty($search)) {
             $searchParam = '%' . $search . '%';
             $stmt->bindParam(':search', $searchParam);
         }
-
+        if (!empty($roleFilter)) {
+            $stmt->bindParam(':role', $roleFilter);
+        }
+    
+        // Bind limit and offset parameters
+        $stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindParam(':offset', $offset, PDO::PARAM_INT);
+        
         $stmt->execute();
         $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        echo json_encode([
-            'status' => empty($users) ? 'error' : 'success',
-            'message' => empty($users) ? 'No users found.' : 'Users retrieved successfully',
-            'data' => $users
-        ], JSON_PRETTY_PRINT);
+    
+        response(empty($users) ? 'error' : 'success', empty($users) ? 'No users found.' : 'Users retrieved successfully', $users, 200);
     }
+    
 
     public function getUserById($id) {
         $this->setHeaders();

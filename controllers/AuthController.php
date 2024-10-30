@@ -1,168 +1,140 @@
 <?php
-require_once '../config/database.php'; // Include your database connection file
-require_once '../vendor/autoload.php'; // Include Composer's autoloader
-require_once '../config/jwt_config.php'; // Include your JWT configuration
-use Firebase\JWT\JWT;
+    require_once '../config/JwtConfig.php';
+    require_once '../vendor/autoload.php'; 
+    require_once '../helpers/ResponseHelpers.php';
 
-class AuthController {
-    private $db;
 
-    public function __construct($db) {
-        $this->db = $db;
-    }
+    use Firebase\JWT\JWT;
 
-    // Function to set JSON headers and CORS headers
-    private function setHeaders() {
-        header("Content-Type: application/json; charset=UTF-8");
-        header("Access-Control-Allow-Origin: http://localhost:50581"); // Replace with actual frontend URL
-        header("Access-Control-Allow-Credentials: true");
-        header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
-        header("Access-Control-Allow-Headers: Content-Type, Authorization");
-        header("Access-Control-Max-Age: 3600");
-    }
+    class AuthController {
+        private $db;
 
-    // Generate JWT
-    private function generateJWT($userId, $roles) {
-        $issuedAt = time();
-        $expirationTime = $issuedAt + JWT_EXPIRATION_TIME; // Token valid for the configured expiration time
-        $payload = [
-            'user_id' => $userId,
-            'roles' => $roles,
-            'iat' => $issuedAt,
-            'exp' => $expirationTime,
-        ];
-        
-        return JWT::encode($payload, JWT_SECRET, 'HS256');
-    }
-
-    // User login
-    public function login() {
-        $this->setHeaders(); // Set the headers
-        $data = json_decode(file_get_contents("php://input"), true);
-        
-        $email = $data['email'] ?? '';
-        $password = $data['password'] ?? '';
-
-        // Validate input
-        if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            header("HTTP/1.0 400 Bad Request");
-            echo json_encode(['status' => 'error', 'message' => 'Invalid email format.'], JSON_PRETTY_PRINT);
-            return;
-        }
-    
-        if (empty($password)) {
-            header("HTTP/1.0 400 Bad Request");
-            echo json_encode(['status' => 'error', 'message' => 'Password is required.'], JSON_PRETTY_PRINT);
-            return;
+        public function __construct($db) {
+            $this->db = $db;
         }
 
-        // Check user in the database with roles using JOIN
-        $stmt = $this->db->prepare("
-            SELECT u.user_id, u.username, u.email, u.password, GROUP_CONCAT(r.role_name) AS roles
-            FROM user u
-            LEFT JOIN user_roles ur ON u.user_id = ur.user_id
-            LEFT JOIN roles r ON ur.role_id = r.role_id
-            WHERE u.email = ?
-            GROUP BY u.user_id
-        ");
-        
-        $stmt->execute([$email]);
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        // Generate JWT
+        private function generateJWT($userId, $roles) {
+            $issuedAt = time();
+            $expirationTime = $issuedAt + JWT_EXPIRATION_TIME; // Token valid for the configured expiration time
+            $payload = [
+                'user_id' => $userId,
+                'roles' => $roles,
+                'iat' => $issuedAt,
+                'exp' => $expirationTime,
+            ];
+            
+            return JWT::encode($payload, JWT_SECRET, 'HS256');
+        }
 
-        if ($result) {
-            // Verify password
-            if (password_verify($password, $result['password'])) {
-                // Create JWT
-                $jwt = $this->generateJWT($result['user_id'], explode(',', $result['roles']));
-                
-                // Send success response with JWT
-                echo json_encode([
-                    'status' => 'success',
-                    'message' => 'Login successful.',
-                    'token' => $jwt
-                ], JSON_PRETTY_PRINT);
-            } else {
-                header("HTTP/1.0 401 Unauthorized");
-                echo json_encode(['status' => 'error', 'message' => 'Incorrect password.'], JSON_PRETTY_PRINT);
+        // User login
+        public function login() {
+            $data = json_decode(file_get_contents("php://input"), true);
+            
+            $email = $data['email'] ?? '';
+            $password = $data['password'] ?? '';
+
+            // Validate input
+            if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                response('error', 'Invalid email format.', null, 400);
+                return;
             }
-        } else {
-            header("HTTP/1.0 404 Not Found");
-            echo json_encode(['status' => 'error', 'message' => 'User not found.'], JSON_PRETTY_PRINT);
-        }
-    }
-
-    // User logout
-    public function logout() {
-        $this->setHeaders(); // Set the headers
-        // JWT logout could be implemented through client-side
-        echo json_encode(['status' => 'success', 'message' => 'Logout successful.'], JSON_PRETTY_PRINT);
-    }
-
-    // Password recovery
-    public function forgotPassword() {
-        $this->setHeaders(); // Set the headers
-        $data = json_decode(file_get_contents("php://input"), true);
-
-        $email = $data['email'] ?? '';
-
-        // Validate email
-        if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            header("HTTP/1.0 400 Bad Request");
-            echo json_encode(['status' => 'error', 'message' => 'Invalid email format.'], JSON_PRETTY_PRINT);
-            return;
-        }
-
-        // Check if email exists in the database
-        $stmt = $this->db->prepare("SELECT * FROM user WHERE email = ?");
-        $stmt->execute([$email]);
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if ($result) {
-            // Here you can implement sending a reset password email
-            echo json_encode(['status' => 'success', 'message' => 'Reset password link sent.'], JSON_PRETTY_PRINT);
-        } else {
-            header("HTTP/1.0 404 Not Found");
-            echo json_encode(['status' => 'error', 'message' => 'Email not found.'], JSON_PRETTY_PRINT);
-        }
-    }
-
-    // Change user password
-    public function changePassword($userId) {
-        $this->setHeaders(); // Set the headers
-        $data = json_decode(file_get_contents("php://input"), true);
-
-        $oldPassword = $data['oldPassword'] ?? '';
-        $newPassword = $data['newPassword'] ?? '';
-
-        // Validate input
-        if (empty($oldPassword) || empty($newPassword)) {
-            header("HTTP/1.0 400 Bad Request");
-            echo json_encode(['status' => 'error', 'message' => 'Both old and new passwords are required.'], JSON_PRETTY_PRINT);
-            return;
-        }
-
-        // Check if user exists
-        $stmt = $this->db->prepare("SELECT * FROM user WHERE user_id = ?");
-        $stmt->execute([$userId]);
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if ($result) {
-            // Verify old password
-            if (password_verify($oldPassword, $result['password'])) {
-                // Update with new password
-                $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
-                $updateStmt = $this->db->prepare("UPDATE user SET password = ? WHERE user_id = ?");
-                $updateStmt->execute([$hashedPassword, $userId]); // Pass parameters as an array
-
-                echo json_encode(['status' => 'success', 'message' => 'Password changed successfully.'], JSON_PRETTY_PRINT);
-            } else {
-                header("HTTP/1.0 401 Unauthorized");
-                echo json_encode(['status' => 'error', 'message' => 'Old password is incorrect.'], JSON_PRETTY_PRINT);
+        
+            if (empty($password)) {
+                response('error', 'Password is required.', null, 400);
+                return;
             }
-        } else {
-            header("HTTP/1.0 404 Not Found");
-            echo json_encode(['status' => 'error', 'message' => 'User not found.'], JSON_PRETTY_PRINT);
+
+            // Check user in the database with roles using JOIN
+            $stmt = $this->db->prepare("
+                SELECT u.user_id, u.username, u.email, u.password, GROUP_CONCAT(r.role_name) AS roles
+                FROM user u
+                LEFT JOIN user_roles ur ON u.user_id = ur.user_id
+                LEFT JOIN roles r ON ur.role_id = r.role_id
+                WHERE u.email = ?
+                GROUP BY u.user_id
+            ");
+            
+            $stmt->execute([$email]);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($result) {
+                // Verify password
+                if (password_verify($password, $result['password'])) {
+                    // Create JWT
+                    $jwt = $this->generateJWT($result['user_id'], explode(',', $result['roles']));
+                    
+                    response('success', 'Login successful.', ['token' => $jwt], 200);
+                } else {
+                    response('error', 'Incorrect email or password.', null, 401);
+                }
+            }
+        }
+
+        // User logout
+        public function logout() {
+            // JWT logout could be implemented through client-side
+            response('success', 'Logout successful.', null, 200);
+        }
+
+        // Password recovery
+        public function forgotPassword() {
+            $data = json_decode(file_get_contents("php://input"), true);
+
+            $email = $data['email'] ?? '';
+
+            // Validate email
+            if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                response('error', 'Invalid email format.', null, 400);
+                return;
+            }
+
+            // Check if email exists in the database
+            $stmt = $this->db->prepare("SELECT * FROM user WHERE email = ?");
+            $stmt->execute([$email]);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($result) {
+                // Here you can implement sending a reset password email
+                response('success', 'Reset password link sent.', null, 200);
+            } else {
+                response('error', 'Email not found.', null, 404);
+            }
+        }
+
+        // Change user password
+        public function changePassword($userId) {
+            $data = json_decode(file_get_contents("php://input"), true);
+
+            $oldPassword = $data['oldPassword'] ?? '';
+            $newPassword = $data['newPassword'] ?? '';
+
+            // Validate input
+            if (empty($oldPassword) || empty($newPassword)) {
+                response('error', 'Both old and new passwords are required.', null, 400);
+                return;
+            }
+
+            // Check if user exists
+            $stmt = $this->db->prepare("SELECT * FROM user WHERE user_id = ?");
+            $stmt->execute([$userId]);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($result) {
+                // Verify old password
+                if (password_verify($oldPassword, $result['password'])) {
+                    // Update with new password
+                    $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+                    $updateStmt = $this->db->prepare("UPDATE user SET password = ? WHERE user_id = ?");
+                    $updateStmt->execute([$hashedPassword, $userId]); // Pass parameters as an array
+
+                    response('success', 'Password changed successfully.', null, 200);
+                } else {
+                    response('error', 'Old password is incorrect.', null, 401);
+                }
+            } else {
+                response('error', 'User not found.', null, 404);
+            }
         }
     }
-}
 ?>

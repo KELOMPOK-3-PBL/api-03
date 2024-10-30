@@ -1,16 +1,10 @@
 RewriteEngine On
-RewriteBase /pbl/
 
-# For events
-RewriteRule ^events/?$ routes/eventRoutes.php [NC,L]
-RewriteRule ^events/([0-9]+)/?$ routes/eventRoutes.php?event_id=$1 [NC,L]
+# Rute normal ke file PHP
+RewriteRule ^(events|categories|users|likes|comments|replies|tickets|auth|registration|session)/?$ routes/$1.php [NC,L]
 
-# For users
-RewriteRule ^users/?$ routes/userRoutes.php [NC,L]
-RewriteRule ^users/([0-9]+)/?$ routes/userRoutes.php?user_id=$1 [NC,L]
+# Rute dengan parameter ID
+RewriteRule ^(events|categories|users|likes|comments|replies|tickets|auth|registration|session)/([0-9]+)/?$ routes/$1.php?id=$2 [NC,L]
 
-# Redirect all requests to index.php
-#RewriteCond %{REQUEST_FILENAME} !-f
-#RewriteCond %{REQUEST_FILENAME} !-d
-#RewriteRule ^(.*)$ authRoutes.php [QSA,L]
-
+# Cek fallback jika rute di atas gagal
+# RewriteRule ^.*$ routes/404.php [L]
