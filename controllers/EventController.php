@@ -1,10 +1,10 @@
 <?php
 require_once '../vendor/autoload.php'; // Include Composer's autoloader
 require_once '../config/JwtConfig.php'; // Include your JWT configuration
-require_once '../helpers/ResponseHelpers.php';
+require_once '../helpers/ResponseHelpers.php'; // Include your response helper functions
 
 use Firebase\JWT\JWT;
-use Firebase\JWT\Key; 
+use Firebase\JWT\Key;
 
 class EventController {
     private $db;
@@ -13,15 +13,14 @@ class EventController {
         $this->db = $db;
     }
 
-    // Get user from JWT
+    // Get user from JWT stored in cookies
     private function getUserFromJWT() {
-        $headers = getallheaders();
-        if (!isset($headers['Authorization'])) {
+        if (!isset($_COOKIE['jwt'])) {
             response('error', 'No token provided.', null, 403);
             return false;
         }
 
-        $jwt = str_replace('Bearer ', '', $headers['Authorization']);
+        $jwt = $_COOKIE['jwt'];
         if (!$jwt) {
             response('error', 'Token is not valid.', null, 403);
             return false;
@@ -56,7 +55,7 @@ class EventController {
         $searchTerm = isset($_GET['search']) ? $_GET['search'] : null;
         $sortBy = isset($_GET['sort_by']) ? $_GET['sort_by'] : 'date_add';
         $sortOrder = isset($_GET['sort_order']) ? $_GET['sort_order'] : 'ASC';
-        
+
         // Get pagination parameters
         $page = isset($_GET['page']) ? (int)$_GET['page'] : 1; // Default to page 1
         $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 5; // Default to 5
@@ -96,21 +95,17 @@ class EventController {
         if ($category) {
             $query .= " AND c.category_name = :category";
         }
-        if ($dateFrom && $dateTo) {
-            $query .= " AND e.date_start BETWEEN :date_from AND :date_to";
-        } elseif ($dateFrom) {
-            $query .= " AND e.date_start >= :date_from";
-        } elseif ($dateTo) {
-            $query .= " AND e.date_start <= :date_to";
+        if ($dateFrom) {
+            $query .= " AND e.date_start >= :dateFrom";
         }
-
-        // Add search condition
+        if ($dateTo) {
+            $query .= " AND e.date_end <= :dateTo";
+        }
         if ($searchTerm) {
-            $query .= " AND (e.title LIKE :search OR e.description LIKE :search)";
+            $query .= " AND (e.title LIKE :searchTerm OR e.description LIKE :searchTerm)";
         }
 
-        // Order and limit the results
-        $query .= " ORDER BY e." . $sortBy . " " . $sortOrder . " LIMIT :limit OFFSET :offset";
+        $query .= " ORDER BY $sortBy $sortOrder LIMIT :limit OFFSET :offset";
 
         $stmt = $this->db->prepare($query);
 
@@ -122,39 +117,34 @@ class EventController {
             $stmt->bindParam(':category', $category);
         }
         if ($dateFrom) {
-            $stmt->bindParam(':date_from', $dateFrom);
+            $stmt->bindParam(':dateFrom', $dateFrom);
         }
         if ($dateTo) {
-            $stmt->bindParam(':date_to', $dateTo);
+            $stmt->bindParam(':dateTo', $dateTo);
         }
         if ($searchTerm) {
-            $searchParam = '%' . $searchTerm . '%';
-            $stmt->bindParam(':search', $searchParam);
+            $searchTerm = "%$searchTerm%";
+            $stmt->bindParam(':searchTerm', $searchTerm);
         }
-
-        // Bind pagination parameters
-        $stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
-        $stmt->bindParam(':offset', $offset, PDO::PARAM_INT);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
 
         $stmt->execute();
         $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+        // Return events
         response('success', 'Events retrieved successfully.', $events, 200);
     }
 
-    // Get an event by ID
-    public function getEventById($event_id) {
+    // Get event by ID
+    public function getEventById($eventId) {
         $roles = $this->checkUserRole();
         if (!$roles) return;
 
-        // Prepare the query to fetch the event details
-        $query = "
+        $stmt = $this->db->prepare("
             SELECT 
                 e.event_id,
                 e.title,
-                e.date_add,
-                u.username AS propose_user,
-                c.category_name AS category,
                 e.description,
                 e.poster,
                 e.location,
@@ -162,22 +152,19 @@ class EventController {
                 e.quota,
                 e.date_start,
                 e.date_end,
-                a.username AS admin_user,
+                u.username AS propose_user,
+                c.category_name AS category,
                 s.status_name AS status,
                 e.note
             FROM 
                 event e
             LEFT JOIN user u ON e.propose_user_id = u.user_id
             LEFT JOIN category c ON e.category_id = c.category_id
-            LEFT JOIN user a ON e.admin_user_id = a.user_id
             LEFT JOIN status s ON e.status = s.status_id
-            WHERE e.event_id = :event_id
-        ";
+            WHERE e.event_id = ?
+        ");
 
-        $stmt = $this->db->prepare($query);
-        $stmt->bindParam(':event_id', $event_id, PDO::PARAM_INT);
-        $stmt->execute();
-        
+        $stmt->execute([$eventId]);
         $event = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($event) {
@@ -187,102 +174,92 @@ class EventController {
         }
     }
 
-
     // Create a new event
     public function createEvent() {
         $roles = $this->checkUserRole();
         if (!$roles) return;
 
-        if (!in_array('Propose', $roles)) {
-            response('error', 'Only propose users can create events.', null, 403);
-            echo json_encode([
-                'status' => 'error',
-                'message' => 'Only propose users can create events.',
-                'code' => 403,
-                'data' => null
-            ], JSON_PRETTY_PRINT);
+        $data = json_decode(file_get_contents("php://input"), true);
+
+        $title = $data['title'] ?? '';
+        $description = $data['description'] ?? '';
+        $poster = $data['poster'] ?? '';
+        $location = $data['location'] ?? '';
+        $place = $data['place'] ?? '';
+        $quota = $data['quota'] ?? 0;
+        $dateStart = $data['date_start'] ?? '';
+        $dateEnd = $data['date_end'] ?? '';
+        $proposeUserId = $data['propose_user_id'] ?? null; // Assuming you want to set the proposing user ID
+        $categoryId = $data['category_id'] ?? null; // Assuming you want to set the category ID
+
+        // Validate input
+        if (empty($title) || empty($description) || empty($dateStart) || empty($dateEnd) || $quota <= 0) {
+            response('error', 'All fields are required and quota must be greater than 0.', null, 400);
             return;
         }
 
-        $data = json_decode(file_get_contents("php://input"));
+        // Insert new event
+        $stmt = $this->db->prepare("
+            INSERT INTO event (title, description, poster, location, place, quota, date_start, date_end, propose_user_id, category_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ");
 
-        $stmt = $this->db->prepare("INSERT INTO event (propose_user_id, title, date_add, category_id, description, poster, location, place, quota, date_start, date_end, admin_user_id, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-
-        if ($stmt->execute([
-            $data->propose_user_id,
-            $data->title,
-            $data->date_add,
-            $data->category_id,
-            $data->description,
-            $data->poster,
-            $data->location,
-            $data->place,
-            $data->quota,
-            $data->date_start,
-            $data->date_end,
-            null,
-            'reviewing'
-        ])) {
-            response('success', 'Event created successfully.', $data, 201);
+        if ($stmt->execute([$title, $description, $poster, $location, $place, $quota, $dateStart, $dateEnd, $proposeUserId, $categoryId])) {
+            response('success', 'Event created successfully.', null, 201);
         } else {
-            response('error', 'Event creation failed.', null, 500);
+            response('error', 'Failed to create event.', null, 500);
         }
     }
 
-    // Update an existing event
-    public function updateEvent($event_id) {
+    // Update an event by ID
+    public function updateEvent($eventId) {
         $roles = $this->checkUserRole();
         if (!$roles) return;
 
-        $data = json_decode(file_get_contents("php://input"));
+        $data = json_decode(file_get_contents("php://input"), true);
 
-        if (in_array('Admin', $roles)) {
-            // Admin can only edit note and admin_user_id
-            $stmt = $this->db->prepare("UPDATE event SET admin_user_id = ?, note = ?, status = 'pending' WHERE event_id = ?");
-            if ($stmt->execute([$data->admin_user_id, $data->note, $event_id])) {
-                response('success', 'Event updated successfully.', $data, 200);
-            } else {
-                response('error', 'Event update failed.', null, 500);
-            }
-        } elseif (in_array('Propose', $roles)) {
-            // Propose can edit other fields
-            $stmt = $this->db->prepare("UPDATE event SET title = ?, category_id = ?, description = ?, poster = ?, location = ?, place = ?, quota = ?, date_start = ?, date_end = ?, status = 'reviewing' WHERE event_id = ?");
-            if ($stmt->execute([
-                $data->title,
-                $data->category_id,
-                $data->description,
-                $data->poster,
-                $data->location,
-                $data->place,
-                $data->quota,
-                $data->date_start,
-                $data->date_end,
-                $event_id
-            ])) {
-                response('success', 'Event updated successfully.', $data, 200);
-            } else {
-                response('error', 'Event update failed.', null, 500);
-            }
-        } else {
-            response('error', 'Only admin or propose users can update events.', null, 403);
-        }
-    }
+        $title = $data['title'] ?? '';
+        $description = $data['description'] ?? '';
+        $poster = $data['poster'] ?? '';
+        $location = $data['location'] ?? '';
+        $place = $data['place'] ?? '';
+        $quota = $data['quota'] ?? 0;
+        $dateStart = $data['date_start'] ?? '';
+        $dateEnd = $data['date_end'] ?? '';
+        $categoryId = $data['category_id'] ?? null; // Assuming you want to update the category ID
 
-    // Delete an event
-    public function deleteEvent($event_id) {
-        $roles = $this->checkUserRole();
-        if (!$roles) return;
-
-        if (!in_array('Admin', $roles)) {
-            response('error', 'Only admin can delete events.', null, 403);
+        // Validate input
+        if (empty($title) || empty($description) || empty($dateStart) || empty($dateEnd) || $quota <= 0) {
+            response('error', 'All fields are required and quota must be greater than 0.', null, 400);
             return;
         }
+
+        // Update event
+        $stmt = $this->db->prepare("
+            UPDATE event 
+            SET title = ?, description = ?, poster = ?, location = ?, place = ?, quota = ?, date_start = ?, date_end = ?, category_id = ?
+            WHERE event_id = ?
+        ");
+
+        if ($stmt->execute([$title, $description, $poster, $location, $place, $quota, $dateStart, $dateEnd, $categoryId, $eventId])) {
+            response('success', 'Event updated successfully.', null, 200);
+        } else {
+            response('error', 'Failed to update event or no changes made.', null, 500);
+        }
+    }
+
+    // Delete an event by ID
+    public function deleteEvent($eventId) {
+        $roles = $this->checkUserRole();
+        if (!$roles) return;
 
         $stmt = $this->db->prepare("DELETE FROM event WHERE event_id = ?");
-        if ($stmt->execute([$event_id])) {
+        
+        if ($stmt->execute([$eventId])) {
             response('success', 'Event deleted successfully.', null, 200);
         } else {
-            response('error', 'Event deletion failed.', null, 500);
+            response('error', 'Failed to delete event or event not found.', null, 500);
         }
     }
 }
+?>
