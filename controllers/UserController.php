@@ -1,9 +1,10 @@
 <?php
 
 include_once '../config/database.php';
-require_once '../config/JwtConfig.php'; // Include your JWT configuration
+require_once '../config/JwtConfig.php';
 require_once '../vendor/autoload.php'; // Include Composer's autoloader
 require_once '../helpers/ResponseHelpers.php';
+require_once '../helpers/JwtHelpers.php'; // Make sure to include your JWTHelper
 
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
@@ -11,6 +12,7 @@ use Firebase\JWT\Key;
 class UserController {
     private $conn;
     private $table_name = "user";
+    private $jwtHelper;
 
     public $user_id;
     public $username;
@@ -21,50 +23,19 @@ class UserController {
 
     public function __construct($db) {
         $this->conn = $db;
+        $this->jwtHelper = new JWTHelper(); // Instantiate JWTHelper
     }
 
-    private function getRolesFromJWT() {
-        // Check if the JWT cookie is set
-        if (!isset($_COOKIE['jwt'])) {
-            header("HTTP/1.0 401 Unauthorized");
-            echo json_encode(['status' => 'error', 'message' => 'Authorization token not provided.'], JSON_PRETTY_PRINT);
-            exit;
-        }
-        
-        // Get the JWT from the cookie
-        $jwt = $_COOKIE['jwt'];
-        try {
-            $decoded = JWT::decode($jwt, new Key(JWT_SECRET, 'HS256'));
-            return $decoded->roles ?? [];
-        } catch (Exception $e) {
-            header("HTTP/1.0 401 Unauthorized");
-            echo json_encode(['status' => 'error', 'message' => 'Invalid token.'], JSON_PRETTY_PRINT);
-            exit;
-        }
+    private function getRoles() {
+        return $this->jwtHelper->getRoles(); // Use JWTHelper to get roles
     }
-    
-    private function getUserIdFromJWT() {
-        // Check if the JWT cookie is set
-        if (!isset($_COOKIE['jwt'])) {
-            header("HTTP/1.0 401 Unauthorized");
-            echo json_encode(['status' => 'error', 'message' => 'Authorization token not provided.'], JSON_PRETTY_PRINT);
-            exit;
-        }
-        
-        // Get the JWT from the cookie
-        $jwt = $_COOKIE['jwt'];
-        try {
-            $decoded = JWT::decode($jwt, new Key(JWT_SECRET, 'HS256'));
-            return $decoded->user_id ?? null;
-        } catch (Exception $e) {
-            header("HTTP/1.0 401 Unauthorized");
-            echo json_encode(['status' => 'error', 'message' => 'Invalid token.'], JSON_PRETTY_PRINT);
-            exit;
-        }
+
+    private function getUserId() {
+        return $this->jwtHelper->getUserId(); // Use JWTHelper to get user ID
     }
 
     public function getAllUsers() {
-        $roles = $this->getRolesFromJWT();
+        $roles = $this->getRoles();
         
         // Check for superadmin role
         if (!in_array('Superadmin', $roles)) {
@@ -126,12 +97,11 @@ class UserController {
     }
 
     public function getUserById($id) {
-        $roles = $this->getRolesFromJWT();
-        $userIdFromJWT = $this->getUserIdFromJWT();
+        $roles = $this->getRoles();
+        $userIdFromJWT = $this->getUserId();
 
         if (!in_array('Superadmin', $roles) && $userIdFromJWT != $id) {
-            header("HTTP/1.0 403 Forbidden");
-            echo json_encode(['status' => 'error', 'message' => 'Unauthorized access.'], JSON_PRETTY_PRINT);
+            response('error', 'Unauthorized access.', null, 403);
             return;
         }
 
@@ -147,24 +117,16 @@ class UserController {
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($user) {
-            echo json_encode([
-                'status' => 'success',
-                'data' => $user
-            ], JSON_PRETTY_PRINT);
+            response('success', 'User found.', $user, 200);
         } else {
-            header("HTTP/1.0 404 Not Found");
-            echo json_encode([
-                'status' => 'error',
-                'message' => 'User not found.'
-            ], JSON_PRETTY_PRINT);
+            response('error', 'User not found.', null, 404);
         }
     }
 
     public function createUser() {
-        $roles = $this->getRolesFromJWT();
+        $roles = $this->getRoles();
         if (!in_array('Superadmin', $roles)) {
-            header("HTTP/1.0 403 Forbidden");
-            echo json_encode(['status' => 'error', 'message' => 'Only superadmin can create users.'], JSON_PRETTY_PRINT);
+            response('error', 'Only superadmin can create users.', null, 403);
             return;
         }
 
@@ -177,16 +139,9 @@ class UserController {
             $this->roles = $data['roles'] ?? [];
 
             if ($this->create()) {
-                echo json_encode([
-                    'status' => 'success',
-                    'message' => 'User created successfully.'
-                ], JSON_PRETTY_PRINT);
+                response('success', 'User created successfully.', null, 201);
             } else {
-                header("HTTP/1.0 400 Bad Request");
-                echo json_encode([
-                    'status' => 'error',
-                    'message' => 'User creation failed.'
-                ], JSON_PRETTY_PRINT);
+                response('error', 'User creation failed.', null, 400);
             }
         }
     }
@@ -224,12 +179,11 @@ class UserController {
     }
 
     public function updateUser($id) {
-        $roles = $this->getRolesFromJWT();
-        $userIdFromJWT = $this->getUserIdFromJWT();
+        $roles = $this->getRoles();
+        $userIdFromJWT = $this->getUserId();
 
         if (!in_array('Superadmin', $roles) && $userIdFromJWT != $id) {
-            header("HTTP/1.0 403 Forbidden");
-            echo json_encode(['status' => 'error', 'message' => 'Unauthorized access.'], JSON_PRETTY_PRINT);
+            response('error', 'Unauthorized access.', null, 403);
             return;
         }
 
@@ -241,48 +195,45 @@ class UserController {
             $this->about = htmlspecialchars(strip_tags($data['about'] ?? ''));
 
             if ($this->update($id)) {
-                echo json_encode(['status' => 'success', 'message' => 'User updated successfully.'], JSON_PRETTY_PRINT);
+                response('success', 'User updated successfully.', null, 200);
             } else {
-                header("HTTP/1.0 400 Bad Request");
-                echo json_encode(['status' => 'error', 'message' => 'User update failed.'], JSON_PRETTY_PRINT);
+                response('error', 'User update failed.', null, 400);
             }
         }
     }
 
     private function update($id) {
-        $query = "UPDATE " . $this->table_name . " SET username = :username, email = :email, about = :about" . 
-                 ($this->password ? ", password = :password" : "") . 
-                 " WHERE user_id = :user_id";
+        $query = "UPDATE " . $this->table_name . " SET username = :username, email = :email, about = :about WHERE user_id = :user_id";
         $stmt = $this->conn->prepare($query);
-
+        
         $stmt->bindParam(":username", $this->username);
         $stmt->bindParam(":email", $this->email);
-        if ($this->password) {
+        $stmt->bindParam(":user_id", $id);
+        
+        if (!empty($this->password)) {
             $hashed_password = password_hash($this->password, PASSWORD_BCRYPT);
             $stmt->bindParam(":password", $hashed_password);
+            $stmt->execute(); // Execute the update statement if the password is provided
         }
-        $stmt->bindParam(":user_id", $id);
 
         return $stmt->execute();
     }
 
     public function deleteUser($id) {
-        $roles = $this->getRolesFromJWT();
+        $roles = $this->getRoles();
         if (!in_array('Superadmin', $roles)) {
-            header("HTTP/1.0 403 Forbidden");
-            echo json_encode(['status' => 'error', 'message' => 'Only superadmin can delete users.'], JSON_PRETTY_PRINT);
+            response('error', 'Only superadmin can delete users.', null, 403);
             return;
         }
 
         $query = "DELETE FROM " . $this->table_name . " WHERE user_id = :user_id";
         $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(':user_id', $id);
-
+        $stmt->bindParam(":user_id", $id);
+        
         if ($stmt->execute()) {
-            echo json_encode(['status' => 'success', 'message' => 'User deleted successfully.'], JSON_PRETTY_PRINT);
+            response('success', 'User deleted successfully.', null, 200);
         } else {
-            header("HTTP/1.0 400 Bad Request");
-            echo json_encode(['status' => 'error', 'message' => 'User deletion failed.'], JSON_PRETTY_PRINT);
+            response('error', 'User deletion failed.', null, 400);
         }
     }
 }

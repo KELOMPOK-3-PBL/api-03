@@ -78,12 +78,13 @@ class AuthController {
             // Verify password
             if (password_verify($password, $result['password'])) {
                 // Create JWT
-                $jwt = $this->generateJWT($result['user_id'], explode(',', $result['roles']));
+                $roles = explode(',', $result['roles'] ?? '');
+                $jwt = $this->generateJWT($result['user_id'], $roles);
                 
                 // Set JWT in cookie
                 $this->setJWTInCookie($jwt);
 
-                response('success', 'Login successful.', null, 200);
+                response('success', 'Login successful.', ['token' => $jwt], 200);
             } else {
                 response('error', 'Incorrect email or password.', null, 401);
             }

@@ -1,6 +1,8 @@
 <?php
 require_once '../controllers/EventController.php';
 require_once '../config/database.php';
+require_once '../helpers/JwtHelpers.php'; // Ensure you include your JWTHelper
+require_once '../helpers/ResponseHelpers.php'; // Include the ResponseHelpers
 
 $database = new Database();
 $db = $database->getConnection();
@@ -9,7 +11,10 @@ $eventController = new EventController($db);
 // Handle HTTP methods
 $request_method = $_SERVER["REQUEST_METHOD"];
 $event_id = isset($_GET['event_id']) ? $_GET['event_id'] : null;
-$user_role = isset($_GET['user_role']) ? $_GET['user_role'] : null; // Extract user role from query parameter
+
+// Use getRoles() to get the user roles from JWT
+$jwtHelper = new JWTHelper(); // Create an instance of JWTHelper
+$user_roles = $jwtHelper->getRoles(); // Retrieve user roles from the token
 
 switch ($request_method) {
     case 'GET':
@@ -21,57 +26,39 @@ switch ($request_method) {
         break;
 
     case 'POST':
-        // Pass user role to createEvent method
-        if ($user_role) {
-            $eventController->createEvent($user_role);
+        if (in_array('Propose', $user_roles)) { // Check if user has the 'propose' role
+            $eventController->createEvent();
         } else {
-            header("HTTP/1.0 400 Bad Request"); // Missing user role
-            echo json_encode([
-                'status' => 'error',
-                'message' => 'Missing user role.'
-            ], JSON_PRETTY_PRINT);
+            response('error', 'Unauthorized to create events.', null, 403); // User not authorized
         }
         break;
 
     case 'PUT':
         if ($event_id) {
-            // Pass user role to updateEvent method
-            if ($user_role) {
-                $eventController->updateEvent($event_id, $user_role);
+            if (in_array('Admin', $user_roles) || in_array('Propose', $user_roles)) { // Check for roles
+                $eventController->updateEvent($event_id);
             } else {
-                header("HTTP/1.0 400 Bad Request"); // Missing user role
-                echo json_encode([
-                    'status' => 'error',
-                    'message' => 'Missing user role.'
-                ], JSON_PRETTY_PRINT);
+                response('error', 'Unauthorized to update events.', null, 403); // User not authorized
             }
         } else {
-            header("HTTP/1.0 400 Bad Request"); // Missing event_id
-            echo json_encode([
-                'status' => 'error',
-                'message' => 'Missing event_id.'
-            ], JSON_PRETTY_PRINT);
+            response('error', 'Missing event_id.', null, 400); // Missing event_id
         }
         break;
 
     case 'DELETE':
         if ($event_id) {
-            $eventController->deleteEvent($event_id);
+            if (in_array('Admin', $user_roles)) { // Check if user has the 'admin' role
+                $eventController->deleteEvent($event_id);
+            } else {
+                response('error', 'Unauthorized to delete events.', null, 403); // User not authorized
+            }
         } else {
-            header("HTTP/1.0 400 Bad Request"); // Missing event_id
-            echo json_encode([
-                'status' => 'error',
-                'message' => 'Missing event_id.'
-            ], JSON_PRETTY_PRINT);
+            response('error', 'Missing event_id.', null, 400); // Missing event_id
         }
         break;
 
     default:
-        header("HTTP/1.0 405 Method Not Allowed"); // Method not allowed
-        echo json_encode([
-            'status' => 'error',
-            'message' => 'Method not allowed.'
-        ], JSON_PRETTY_PRINT);
+        response('error', 'Method not allowed.', null, 405); // Method not allowed
         break;
 }
 ?>
