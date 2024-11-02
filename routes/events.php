@@ -12,10 +12,14 @@ $eventController = new EventController($db);
 $request_method = $_SERVER["REQUEST_METHOD"];
 $event_id = isset($_GET['event_id']) ? $_GET['event_id'] : null;
 
-// Use getRoles() to get the user roles from JWT
-$jwtHelper = new JWTHelper(); // Create an instance of JWTHelper
-$user_roles = $jwtHelper->getRoles(); // Retrieve user roles from the token
+// Initialize user roles (if needed for other methods)
+$jwtHelper = new JWTHelper();
+$user_roles = [];
 
+// Only retrieve roles for methods that require authentication
+if (in_array($request_method, ['POST', 'PUT', 'DELETE'])) {
+    $user_roles = $jwtHelper->getRoles(); // Retrieve user roles from the token
+}
 switch ($request_method) {
     case 'GET':
         if ($event_id) {
