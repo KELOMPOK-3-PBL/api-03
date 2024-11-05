@@ -17,27 +17,27 @@ $jwtHelper = new JWTHelper();
 $user_roles = [];
 
 // Only retrieve roles for methods that require authentication
-if (in_array($request_method, ['POST', 'PUT', 'DELETE'])) {
+if (in_array($request_method, ['GET','POST', 'PATCH', 'DELETE'])) {
     $user_roles = $jwtHelper->getRoles(); // Retrieve user roles from the token
 }
 switch ($request_method) {
     case 'GET':
-        if ($event_id) {
-            $eventController->getEventById($event_id);
+        if (in_array('Admin', $user_roles)) {
+            // Admin user can get all proposed events (regardless of status)
+            $eventController->getAllProposedEventsForAdmin();
+            return; // Prevent further execution
+        } elseif (in_array('Propose', $user_roles)) { // Corrected from else to elseif
+            // Propose user can get their own proposed events (regardless of status)
+            $user_id = $jwtHelper->getUserId(); // Get the user ID from JWT
+            $eventController->getProposeUserEvents($user_id);
+            return; // Prevent further execution
         } else {
-            $eventController->getAllEvents();
+            response('error', 'Unauthorized to access events.', null, 403); // User not authorized
+            return; // Prevent further execution
         }
         break;
 
-    case 'POST':
-        if (in_array('Propose', $user_roles)) { // Check if user has the 'propose' role
-            $eventController->createEvent();
-        } else {
-            response('error', 'Unauthorized to create events.', null, 403); // User not authorized
-        }
-        break;
-
-    case 'PUT':
+    case 'PATCH':
         if ($event_id) {
             if (in_array('Admin', $user_roles) || in_array('Propose', $user_roles)) { // Check for roles
                 $eventController->updateEvent($event_id);
@@ -48,6 +48,7 @@ switch ($request_method) {
             response('error', 'Missing event_id.', null, 400); // Missing event_id
         }
         break;
+        
 
     case 'DELETE':
         if ($event_id) {

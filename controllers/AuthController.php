@@ -28,34 +28,40 @@ class AuthController {
     }
 
     // Set JWT in cookie
-    private function setJWTInCookie($jwt) {
+    private function setJWTInCookie($jwt, $expiration = null) {
         // Set cookie parameters
         $cookieParams = [
-            'expires' => time() + JWT_EXPIRATION_TIME, // Cookie expiration time
             'path' => '/', // Cookie path
             'domain' => '', // Set domain if needed
             'secure' => false, // Set to true if using HTTPS
             'httponly' => true, // Prevent JavaScript access to the cookie
             'samesite' => 'Strict', // Set SameSite attribute for CSRF protection
         ];
-        
+    
+        // If expiration is provided, set it; otherwise, it will default to a session cookie
+        if ($expiration) {
+            $cookieParams['expires'] = time() + $expiration;
+        }
+    
         // Set the cookie
         setcookie('jwt', $jwt, $cookieParams);
     }
 
     // User login
+// User login
     public function login() {
         $data = json_decode(file_get_contents("php://input"), true);
         
         $email = $data['email'] ?? '';
         $password = $data['password'] ?? '';
+        $rememberMe = $data['remember_me'] ?? false; // Capture remember me option
 
         // Validate input
         if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             response('error', 'Invalid email format.', null, 400);
             return;
         }
-    
+
         if (empty($password)) {
             response('error', 'Password is required.', null, 400);
             return;
@@ -81,8 +87,14 @@ class AuthController {
                 $roles = explode(',', $result['roles'] ?? '');
                 $jwt = $this->generateJWT($result['user_id'], $roles);
                 
-                // Set JWT in cookie
-                $this->setJWTInCookie($jwt);
+                // Set JWT in cookie with appropriate expiration
+                if ($rememberMe) {
+                    // If remember me is checked, set a longer expiration time
+                    $this->setJWTInCookie($jwt, JWT_EXPIRATION_TIME); // Use long expiration for "Remember Me"
+                } else {
+                    // Otherwise, set a session cookie (no expiration time)
+                    $this->setJWTInCookie($jwt); // Session cookie
+                }
 
                 response('success', 'Login successful.', ['token' => $jwt], 200);
             } else {
