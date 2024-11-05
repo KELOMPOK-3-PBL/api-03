@@ -198,13 +198,13 @@ class EventController {
 
 // Update an event by ID
     public function updateEvent($eventId) {
-        $this->jwtHelper->decodeJWT(); // Verify JWT
-        $roles = $this->getRoles(); // Get roles from JWT
+        // Verify JWT and get user roles
+        $this->jwtHelper->decodeJWT();
+        $roles = $this->getRoles();
 
-        // Check for authorized roles
+        // Check if the user has the required roles
         if (!in_array('Admin', $roles) && !in_array('Propose', $roles)) {
-            response('error', 'Unauthorized.', null, 403);
-            return;
+            return response('error', 'Unauthorized.', null, 403);
         }
 
         // Check if the event exists
@@ -213,35 +213,26 @@ class EventController {
         $currentEvent = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$currentEvent) {
-            response('error', 'Event not found.', null, 404);
-            return;
+            return response('error', 'Event not found.', null, 404);
         }
 
         $updateFields = [];
         $stmtData = [];
 
-        // Check for fields to update
+        // Handle updates for 'Propose' role
         if (in_array('Propose', $roles)) {
-            if (!empty($_POST['title'])) {
-                $updateFields[] = "title = ?";
-                $stmtData[] = $_POST['title'];
-            }
-            if (!empty($_POST['description'])) {
-                $updateFields[] = "description = ?";
-                $stmtData[] = $_POST['description'];
-            }
-            if (!empty($_POST['location'])) {
-                $updateFields[] = "location = ?";
-                $stmtData[] = $_POST['location'];
-            }
-            if (!empty($_POST['place'])) {
-                $updateFields[] = "place = ?";
-                $stmtData[] = $_POST['place'];
-            }
-            if (!empty($_POST['quota'])) {
+            $this->validateAndAddField($updateFields, $stmtData, 'title', $_POST['title']);
+            $this->validateAndAddField($updateFields, $stmtData, 'description', $_POST['description']);
+            $this->validateAndAddField($updateFields, $stmtData, 'location', $_POST['location']);
+            $this->validateAndAddField($updateFields, $stmtData, 'place', $_POST['place']);
+            
+            // Validate and convert quota to integer
+            if (!empty($_POST['quota']) && is_numeric($_POST['quota']) && (int)$_POST['quota'] > 0) {
                 $updateFields[] = "quota = ?";
                 $stmtData[] = (int)$_POST['quota'];
             }
+
+            // Check for date start and end validity
             if (!empty($_POST['date_start']) && !empty($_POST['date_end'])) {
                 $updateFields[] = "date_start = ?";
                 $stmtData[] = date('Y-m-d H:i:s', strtotime($_POST['date_start']));
@@ -250,51 +241,52 @@ class EventController {
             }
         }
 
-        // Handle poster upload
+        // Handle poster upload if provided
         if (isset($_FILES['poster']) && $_FILES['poster']['error'] === UPLOAD_ERR_OK) {
             $newPoster = $this->fileUploadHelper->uploadFile($_FILES['poster'], 'poster');
             if ($newPoster) {
-                // Delete the old poster if exists
-                if ($currentEvent['poster'] && file_exists($_SERVER['DOCUMENT_ROOT'] . $currentEvent['poster'])) {
-                    unlink($_SERVER['DOCUMENT_ROOT'] . $currentEvent['poster']);
+                // Delete the old poster if it exists
+                $oldPosterPath = $_SERVER['DOCUMENT_ROOT'] . $currentEvent['poster'];
+                if ($currentEvent['poster'] && file_exists($oldPosterPath)) {
+                    unlink($oldPosterPath);
                 }
                 $updateFields[] = "poster = ?";
                 $stmtData[] = $newPoster;
             } else {
-                response('error', 'Failed to upload poster.', null, 500);
-                return;
+                return response('error', 'Failed to upload poster.', null, 500);
             }
         }
 
-        // Admin role specific updates
+        // Additional fields allowed only for 'Admin' role
         if (in_array('Admin', $roles)) {
-            if (isset($_POST['note'])) {
-                $updateFields[] = "note = ?";
-                $stmtData[] = $_POST['note'];
-            }
-            if (isset($_POST['admin_user_id'])) {
-                $updateFields[] = "admin_user_id = ?";
-                $stmtData[] = $_POST['admin_user_id'];
-            }
+            $this->validateAndAddField($updateFields, $stmtData, 'note', $_POST['note']);
+            $this->validateAndAddField($updateFields, $stmtData, 'admin_user_id', $_POST['admin_user_id']);
         }
 
-        // Check if any fields have been marked for update
+        // Check if there are fields to update
         if (!empty($updateFields)) {
             $query = "UPDATE event SET " . implode(", ", $updateFields) . " WHERE event_id = ?";
             $stmtData[] = $eventId;
 
             $stmt = $this->db->prepare($query);
             if ($stmt->execute($stmtData)) {
-                response('success', 'Event updated successfully.', null, 200);
+                return response('success', 'Event updated successfully.', null, 200);
             } else {
-                response('error', 'Failed to update event.', null, 500);
+                return response('error', 'Failed to update event: ' . implode(', ', $stmt->errorInfo()), null, 500);
             }
         } else {
-            response('error', 'No fields to update.', null, 400);
+            return response('error', 'No fields to update.', null, 400);
         }
     }
 
-    
+    // Helper function to validate and add fields
+    private function validateAndAddField(&$updateFields, &$stmtData, $fieldName, $fieldValue) {
+        if (!empty($fieldValue)) {
+            $updateFields[] = "$fieldName = ?";
+            $stmtData[] = $fieldValue;
+        }
+    }
+
 
     // Delete an event by ID
     public function deleteEvent($eventId) {
