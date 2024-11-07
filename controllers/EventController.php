@@ -231,6 +231,7 @@ class EventController {
                 e.quota,
                 e.date_start,
                 e.date_end,
+                e.schedule,
                 u.username AS propose_user,
                 c.category_name AS category,
                 s.status_name AS status,
@@ -261,7 +262,7 @@ class EventController {
             response('error', 'Unauthorized.', null, 403);
             return;
         }
-
+    
         // Use $_POST for non-file data
         $title = $_POST['title'] ?? '';
         $description = $_POST['description'] ?? '';
@@ -271,7 +272,7 @@ class EventController {
             response('error', 'Poster file is required.', null, 400);
             return;
         }
-
+    
         $fileUploadHelper = new FileUploadHelper(); // No path argument needed
         $poster = $fileUploadHelper->uploadFile($_FILES['poster'], 'poster');
         
@@ -281,113 +282,102 @@ class EventController {
         $quota = (int)($_POST['quota'] ?? 0); 
         $dateStart = $_POST['date_start'] ?? '';
         $dateEnd = $_POST['date_end'] ?? '';
+        $schedule = $_POST['schedule'] ?? '';  // Added schedule
         $categoryId = $_POST['category_id'] ?? null;
-
+    
         $proposeUserId = $this->getUserId(); // Get user ID from JWT
         $dateAdd = date('Y-m-d H:i:s');
         $status = 1;
-
+    
         if (empty($title) || empty($description) || empty($dateStart) || empty($dateEnd) || $quota <= 0) {
             response('error', 'All fields are required and quota must be greater than 0.', null, 400);
             return;
         }
-
+    
         $stmt = $this->db->prepare("
-            INSERT INTO event (title, description, poster, location, place, quota, date_start, date_end, propose_user_id, category_id, date_add, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO event (title, description, poster, location, place, quota, date_start, date_end, schedule, propose_user_id, category_id, date_add, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
-
-        if ($stmt->execute([$title, $description, $poster, $location, $place, $quota, $dateStart, $dateEnd, $proposeUserId, $categoryId, $dateAdd, $status])) {
+    
+        if ($stmt->execute([$title, $description, $poster, $location, $place, $quota, $dateStart, $dateEnd, $schedule, $proposeUserId, $categoryId, $dateAdd, $status])) {
             response('success', 'Event created successfully.', null, 201);
         } else {
             response('error', 'Failed to create event.', null, 500);
         }
     }
+    
 
     // Update an event by ID
     public function updateEvent($eventId) {
-        $this->jwtHelper->decodeJWT(); // Verifikasi JWT
-        $roles = $this->getRoles(); // Ambil roles dari JWT
-    
-        var_dump('Incoming Request Method:', $_SERVER['REQUEST_METHOD']);
-        var_dump('POST Data:', $_POST);
-        var_dump('FILES Data:', $_FILES);
-    
-        // Pengecekan izin peran pengguna
-        if (!in_array('Admin', $roles) && !in_array('Propose', $roles)) {
+        $this->jwtHelper->decodeJWT(); // Verify JWT
+        $roles = $this->getRoles(); // Get roles from JWT
+        if (!in_array('Propose', $roles)) {
             response('error', 'Unauthorized.', null, 403);
             return;
         }
     
-        // Inisialisasi array untuk menampung field yang akan diupdate dan parameter
-        $fieldsToUpdate = [];
-        $params = [];
+        // Fetch current event data by eventId
+        $stmt = $this->db->prepare("SELECT * FROM event WHERE event_id = ?");
+        $stmt->execute([$eventId]);
+        $event = $stmt->fetch();
     
-        // Jika metode adalah PATCH, ambil data dari php://input sebagai alternatif $_POST
-        if ($_SERVER['REQUEST_METHOD'] === 'PATCH') {
-            parse_str(file_get_contents("php://input"), $_POST);
-        }
-    
-        // Field untuk diupdate berdasarkan data POST
-        $updateFields = [
-            'title', 'description', 'location', 'place', 'quota', 
-            'date_start', 'date_end', 'category_id'
-        ];
-    
-        foreach ($updateFields as $field) {
-            if (isset($_POST[$field])) {
-                $fieldsToUpdate[] = "$field = ?";
-                $params[] = ($field === 'quota') ? (int)$_POST[$field] : $_POST[$field];
-            }
-        }
-    
-        // Field khusus untuk Admin
-        if (in_array('Admin', $roles)) {
-            if (isset($_POST['admin_user_id'])) {
-                $fieldsToUpdate[] = "admin_user_id = ?";
-                $params[] = $_POST['admin_user_id'];
-            }
-            if (isset($_POST['note'])) {
-                $fieldsToUpdate[] = "note = ?";
-                $params[] = $_POST['note'];
-            }
-        }
-    
-        // Penanganan upload poster
-        if (isset($_FILES['poster']) && $_FILES['poster']['error'] === UPLOAD_ERR_OK) {
-            $fileUploadHelper = new FileUploadHelper();
-            $newPoster = $fileUploadHelper->uploadFile($_FILES['poster'], 'poster');
-            $fieldsToUpdate[] = "poster = ?";
-            $params[] = $newPoster;
-        }
-    
-        // Set status berdasarkan role
-        $status = in_array('Propose', $roles) ? 1 : 2; // "reviewing" untuk propose, "pending" untuk admin
-        $fieldsToUpdate[] = "status = ?";
-        $params[] = $status;
-    
-        // Pengecekan apakah ada field yang diupdate
-        if (empty($fieldsToUpdate)) {
-            response('error', 'No fields to update.', null, 400);
+        if (!$event) {
+            response('error', 'Event not found.', null, 404);
             return;
         }
     
-        // Debug: Cetak field yang diupdate dan parameter
-        var_dump('Fields to update:', $fieldsToUpdate);
-        var_dump('Parameters:', $params);
-    
-        // Siapkan dan eksekusi query update
-        $sql = "UPDATE event SET " . implode(", ", $fieldsToUpdate) . ", updated = NOW() WHERE event_id = ?";
-        $params[] = $eventId; // Tambahkan eventId ke params untuk klausa WHERE
-    
-        // Debug: Cetak query SQL
-        var_dump('SQL Query:', $sql);
-    
-        $stmt = $this->db->prepare($sql);
+        // Use $_POST for non-file data
+        $title = $_POST['title'] ?? $event['title'];
+        $description = $_POST['description'] ?? $event['description'];
         
-        if ($stmt->execute($params)) {
-            $rowCount = $stmt->rowCount();
-            response('success', $rowCount > 0 ? 'Event updated successfully.' : 'No changes were made to the event.', null, 200);
+        // Check if the 'poster' file exists in $_FILES for an update
+        if (isset($_FILES['poster'])) {
+            // Remove the old poster if it's being updated
+            $fileUploadHelper = new FileUploadHelper(); // No path argument needed
+            $poster = $fileUploadHelper->uploadFile($_FILES['poster'], 'poster');
+        } else {
+            // Keep the old poster if not updating
+            $poster = $event['poster'];
+        }
+    
+        $location = $_POST['location'] ?? $event['location'];
+        $place = $_POST['place'] ?? $event['place'];
+        $quota = (int)($_POST['quota'] ?? $event['quota']);
+        $dateStart = $_POST['date_start'] ?? $event['date_start'];
+        $dateEnd = $_POST['date_end'] ?? $event['date_end'];
+        $schedule = $_POST['schedule'] ?? $event['schedule'];
+        $categoryId = $_POST['category_id'] ?? $event['category_id'];
+    
+        $proposeUserId = $this->getUserId(); // Get user ID from JWT
+        $dateAdd = $event['date_add']; // Keep original add date
+        $status = $event['status']; // Keep original status (or modify if needed)
+    
+        // Debugging: var_dump the values
+    
+        if (empty($title) || empty($description) || empty($dateStart) || empty($dateEnd) || $quota <= 0) {
+            response('error', 'All fields are required and quota must be greater than 0.', null, 400);
+            return;
+        }
+    
+        $stmt = $this->db->prepare("
+            UPDATE event SET 
+                title = ?, 
+                description = ?, 
+                poster = ?, 
+                location = ?, 
+                place = ?, 
+                quota = ?, 
+                date_start = ?, 
+                date_end = ?, 
+                schedule = ?, 
+                category_id = ?,
+                date_add = ?, 
+                status = ?
+            WHERE event_id = ?
+        ");
+    
+        if ($stmt->execute([$title, $description, $poster, $location, $place, $quota, $dateStart, $dateEnd, $schedule, $categoryId, $dateAdd, $status, $eventId])) {
+            response('success', 'Event updated successfully.', null, 200);
         } else {
             response('error', 'Failed to update event.', null, 500);
         }
