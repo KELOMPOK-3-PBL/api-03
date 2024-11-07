@@ -17,7 +17,7 @@ $jwtHelper = new JWTHelper();
 $user_roles = [];
 
 // Only retrieve roles for methods that require authentication
-if (in_array($request_method, ['GET','POST', 'PATCH', 'DELETE'])) {
+if (in_array($request_method, ['GET','POST', 'DELETE'])) {
     $user_roles = $jwtHelper->getRoles(); // Retrieve user roles from the token
 }
 switch ($request_method) {
@@ -37,18 +37,23 @@ switch ($request_method) {
         }
         break;
 
-    case 'PATCH':
-        if ($event_id) {
-            if (in_array('Admin', $user_roles) || in_array('Propose', $user_roles)) { // Check for roles
-                $eventController->updateEvent($event_id);
+        case 'POST':
+            if ($event_id) {
+                // Update event if an event_id is provided and the user has the appropriate role
+                if (in_array('Admin', $user_roles) || in_array('Propose', $user_roles)) { // Check for roles
+                    $eventController->updateEvent($event_id);
+                } else {
+                    response('error', 'Unauthorized to update events.', null, 403); // User not authorized
+                }
             } else {
-                response('error', 'Unauthorized to update events.', null, 403); // User not authorized
+                // No event_id provided, so create a new event
+                if (in_array('Propose', $user_roles)) { // Check if user has 'Propose' role
+                    $eventController->createEvent(); // Call createEvent method
+                } else {
+                    response('error', 'Unauthorized to create events.', null, 403); // User not authorized
+                }
             }
-        } else {
-            response('error', 'Missing event_id.', null, 400); // Missing event_id
-        }
-        break;
-        
+            break;
 
     case 'DELETE':
         if ($event_id) {
