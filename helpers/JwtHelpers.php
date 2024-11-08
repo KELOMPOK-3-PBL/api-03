@@ -1,6 +1,6 @@
 <?php
-require_once '../config/JwtConfig.php'; // Sertakan file konfigurasi JWT
-require_once '../vendor/autoload.php'; // Pastikan untuk menyertakan library JWT jika menggunakan Composer
+require_once '../config/JwtConfig.php';
+require_once '../vendor/autoload.php';
 
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
@@ -9,42 +9,38 @@ class JWTHelper {
     private $jwtSecret;
 
     public function __construct() {
-        $this->jwtSecret = JWT_SECRET; // Dapatkan secret dari file konfigurasi
+        $this->jwtSecret = JWT_SECRET; // Get secret from config file
     }
 
     private function getJWTFromHeader() {
-        if (!isset($_SERVER['HTTP_AUTHORIZATION'])) {
+        $headers = apache_request_headers();
+        if (isset($headers['Authorization'])) {
+            $matches = [];
+            if (preg_match('/Bearer\s(\S+)/', $headers['Authorization'], $matches)) {
+                return $matches[1];
+            } else {
+                throw new Exception('Invalid authorization format in header.', 401);
+            }
+        } else {
             throw new Exception('Authorization token not provided in header.', 401);
         }
-        
-        $matches = [];
-        if (preg_match('/Bearer (.+)/', $_SERVER['HTTP_AUTHORIZATION'], $matches)) {
-            return $matches[1];
-        } else {
-            throw new Exception('Invalid authorization format in header.', 401);
-        }
     }
+    
 
-    // Opsional: Jika Anda masih ingin mendukung cookie
     private function getJWTFromCookie() {
         if (!isset($_COOKIE['jwt'])) {
             throw new Exception('Authorization token not provided in cookie.', 401);
         }
         
-        $jwt = $_COOKIE['jwt'];
-        if (!$jwt) {
-            throw new Exception('Token is not valid.', 401);
-        }
-
-        return $jwt;
+        return $_COOKIE['jwt'];
     }
 
     public function getJWT() {
-        // Prioritaskan header Authorization
         try {
+            // Prioritize checking the Authorization header
             return $this->getJWTFromHeader();
         } catch (Exception $e) {
-            // Jika header tidak tersedia, coba dari cookie
+            // If header is not available, try getting from cookie (for web)
             return $this->getJWTFromCookie();
         }
     }
@@ -80,4 +76,3 @@ class JWTHelper {
         return $this->decodeJWT();
     }
 }
-

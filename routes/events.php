@@ -22,7 +22,7 @@ if (in_array($request_method, ['GET','POST', 'DELETE'])) {
 }
 switch ($request_method) {
     case 'GET':
-        if (in_array('Admin', $user_roles)) {
+        if (in_array('Admin', $user_roles) || in_array('Superadmin', $user_roles)) {
             // Admin user can get all proposed events (regardless of status)
             $eventController->getAllProposedEventsForAdmin();
             return; // Prevent further execution

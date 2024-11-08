@@ -29,9 +29,11 @@ class EventController {
         $dateFrom = isset($_GET['date_from']) ? $_GET['date_from'] : null;
         $dateTo = isset($_GET['date_to']) ? $_GET['date_to'] : null;
         $searchTerm = isset($_GET['search']) ? $_GET['search'] : null;
-        $status = isset($_GET['status']) ? $_GET['status'] : null; // New status filter
+        $status = isset($_GET['status']) ? $_GET['status'] : null;
         $sortBy = isset($_GET['sort_by']) ? $_GET['sort_by'] : 'date_add';
         $sortOrder = isset($_GET['sort_order']) ? $_GET['sort_order'] : 'ASC';
+        $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : null; // Let front end decide
+        $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
     
         $query = "
             SELECT 
@@ -46,8 +48,7 @@ class EventController {
             LEFT JOIN user a ON e.admin_user_id = a.user_id
             LEFT JOIN status s ON e.status = s.status_id
             WHERE s.status_name = 'approved'";
-    
-        // Initialize an array for parameters
+        
         $params = [];
     
         if ($category) {
@@ -67,35 +68,45 @@ class EventController {
             $params[':searchTerm'] = "%$searchTerm%";
         }
         if ($status) {
-            $query .= " AND s.status_name = :status"; // Filter by status
+            $query .= " AND s.status_name = :status";
             $params[':status'] = $status;
         }
     
         $query .= " ORDER BY $sortBy $sortOrder";
     
-        // Prepare and execute the statement
+        // Add pagination only if limit is provided
+        if ($limit !== null) {
+            $query .= " LIMIT :limit OFFSET :offset";
+        }
+    
         $stmt = $this->db->prepare($query);
-        
-        // Bind parameters in a loop
+    
         foreach ($params as $key => $value) {
             $stmt->bindValue($key, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
+        }
+    
+        if ($limit !== null) {
+            $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+            $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         }
     
         $stmt->execute();
         $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
         response('success', 'Approved events retrieved successfully.', $events, 200);
-    }
+    }    
     
     public function getProposeUserEvents($userId) {
-        // Retrieve filters from query parameters
+        // Retrieve filters and pagination from query parameters
         $category = isset($_GET['category']) ? $_GET['category'] : null;
         $dateFrom = isset($_GET['date_from']) ? $_GET['date_from'] : null;
         $dateTo = isset($_GET['date_to']) ? $_GET['date_to'] : null;
         $searchTerm = isset($_GET['search']) ? $_GET['search'] : null;
-        $status = isset($_GET['status']) ? $_GET['status'] : null; // New status filter
+        $status = isset($_GET['status']) ? $_GET['status'] : null;
         $sortBy = isset($_GET['sort_by']) ? $_GET['sort_by'] : 'date_add';
         $sortOrder = isset($_GET['sort_order']) ? $_GET['sort_order'] : 'ASC';
+        $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : null;
+        $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
     
         $query = "
             SELECT 
@@ -131,18 +142,27 @@ class EventController {
             $params[':searchTerm'] = "%$searchTerm%";
         }
         if ($status) {
-            $query .= " AND s.status_name = :status"; // Filter by status
+            $query .= " AND s.status_name = :status";
             $params[':status'] = $status;
         }
     
         $query .= " ORDER BY $sortBy $sortOrder";
     
+        // Add LIMIT and OFFSET only if limit is specified
+        if ($limit !== null) {
+            $query .= " LIMIT :limit OFFSET :offset";
+        }
+    
         // Prepare and execute the statement
         $stmt = $this->db->prepare($query);
-        
-        // Bind parameters in a loop
+    
         foreach ($params as $key => $value) {
             $stmt->bindValue($key, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
+        }
+    
+        if ($limit !== null) {
+            $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+            $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         }
     
         $stmt->execute();
@@ -152,14 +172,16 @@ class EventController {
     }
     
     public function getAllProposedEventsForAdmin() {
-        // Retrieve filters from query parameters
+        // Retrieve filters and pagination from query parameters
         $category = isset($_GET['category']) ? $_GET['category'] : null;
         $dateFrom = isset($_GET['date_from']) ? $_GET['date_from'] : null;
         $dateTo = isset($_GET['date_to']) ? $_GET['date_to'] : null;
         $searchTerm = isset($_GET['search']) ? $_GET['search'] : null;
-        $status = isset($_GET['status']) ? $_GET['status'] : null; // New status filter
+        $status = isset($_GET['status']) ? $_GET['status'] : null;
         $sortBy = isset($_GET['sort_by']) ? $_GET['sort_by'] : 'date_add';
         $sortOrder = isset($_GET['sort_order']) ? $_GET['sort_order'] : 'ASC';
+        $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : null;
+        $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
     
         $query = "
             SELECT 
@@ -173,9 +195,8 @@ class EventController {
             LEFT JOIN category c ON e.category_id = c.category_id
             LEFT JOIN user a ON e.admin_user_id = a.user_id
             LEFT JOIN status s ON e.status = s.status_id
-            WHERE 1=1"; // Allows flexible filtering
+            WHERE 1=1";
     
-        // Initialize an array for parameters
         $params = [];
     
         if ($category) {
@@ -195,18 +216,25 @@ class EventController {
             $params[':searchTerm'] = "%$searchTerm%";
         }
         if ($status) {
-            $query .= " AND s.status_name = :status"; // Filter by status
+            $query .= " AND s.status_name = :status";
             $params[':status'] = $status;
         }
     
         $query .= " ORDER BY $sortBy $sortOrder";
     
-        // Prepare and execute the statement
+        if ($limit !== null) {
+            $query .= " LIMIT :limit OFFSET :offset";
+        }
+    
         $stmt = $this->db->prepare($query);
-        
-        // Bind parameters in a loop
+    
         foreach ($params as $key => $value) {
             $stmt->bindValue($key, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
+        }
+    
+        if ($limit !== null) {
+            $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+            $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         }
     
         $stmt->execute();
@@ -214,6 +242,7 @@ class EventController {
     
         response('success', 'All proposed events retrieved for Admin.', $events, 200);
     }
+    
     
 
     // Get event by ID
