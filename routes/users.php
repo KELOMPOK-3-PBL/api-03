@@ -21,18 +21,10 @@ switch ($request_method) {
         break;
 
     case 'POST':
-        $userController->createUser();  // Create a new user
-        break;
-
-    case 'PUT':
         if ($user_id) {
             $userController->updateUser($user_id);  // Update a specific user
         } else {
-            header("HTTP/1.0 400 Bad Request");
-            echo json_encode([
-                'status' => 'error',
-                'message' => 'Missing user_id.'
-            ], JSON_PRETTY_PRINT);
+            $userController->createUser();  // Create a new user
         }
         break;
 

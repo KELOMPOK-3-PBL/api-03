@@ -311,7 +311,9 @@ class EventController {
     public function updateEvent($eventId) {
         $this->jwtHelper->decodeJWT(); // Verify JWT
         $roles = $this->getRoles(); // Get roles from JWT
-        if (!in_array('Propose', $roles)) {
+    
+        // Check if the user has 'Propose' role for general event modification
+        if (!in_array('Propose', $roles) && !in_array('Admin', $roles)) {
             response('error', 'Unauthorized.', null, 403);
             return;
         }
@@ -352,13 +354,23 @@ class EventController {
         $dateAdd = $event['date_add']; // Keep original add date
         $status = $event['status']; // Keep original status (or modify if needed)
     
-        // Debugging: var_dump the values
-    
+        // Check for required fields
         if (empty($title) || empty($description) || empty($dateStart) || empty($dateEnd) || $quota <= 0) {
             response('error', 'All fields are required and quota must be greater than 0.', null, 400);
             return;
         }
     
+        // Admin role: Update admin_user_id, note, and set status to 2
+        if (in_array('Admin', $roles)) {
+            $adminUserId = $this->getUserId(); // The admin user making the update
+            $note = $_POST['note'] ?? ''; // Note can be updated by Admin
+            $status = 2; // Set status to 2 for Admin updates
+        } else {
+            $adminUserId = $event['admin_user_id']; // Keep the existing admin_user_id
+            $note = $event['note']; // Keep the existing note
+        }
+    
+        // Update event in the database
         $stmt = $this->db->prepare("
             UPDATE event SET 
                 title = ?, 
@@ -370,18 +382,24 @@ class EventController {
                 date_start = ?, 
                 date_end = ?, 
                 schedule = ?, 
-                category_id = ?,
+                category_id = ?, 
+                admin_user_id = ?, 
+                note = ?, 
                 date_add = ?, 
                 status = ?
             WHERE event_id = ?
         ");
     
-        if ($stmt->execute([$title, $description, $poster, $location, $place, $quota, $dateStart, $dateEnd, $schedule, $categoryId, $dateAdd, $status, $eventId])) {
+        if ($stmt->execute([
+            $title, $description, $poster, $location, $place, $quota, $dateStart, $dateEnd, $schedule, 
+            $categoryId, $adminUserId, $note, $dateAdd, $status, $eventId
+        ])) {
             response('success', 'Event updated successfully.', null, 200);
         } else {
             response('error', 'Failed to update event.', null, 500);
         }
     }
+    
     
     // Delete an event by ID
     public function deleteEvent($eventId) {
