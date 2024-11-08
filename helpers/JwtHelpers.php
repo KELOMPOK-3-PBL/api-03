@@ -80,3 +80,4 @@ class JWTHelper {
         return $this->decodeJWT();
     }
 }
+
