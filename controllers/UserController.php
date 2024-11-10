@@ -132,25 +132,28 @@ class UserController {
             response('error', 'Only superadmin can create users.', null, 403);
             return;
         }
-
+    
         $this->username = htmlspecialchars(strip_tags($_POST['username'] ?? ''));
         $this->email = htmlspecialchars(strip_tags($_POST['email'] ?? ''));
         $this->password = htmlspecialchars(strip_tags($_POST['password'] ?? ''));
         $this->about = htmlspecialchars(strip_tags($_POST['about'] ?? ''));
-        $this->roles = $_POST['roles'] ?? [];
-
+        
+        // Convert roles input (e.g., "1,3") to an array
+        $rolesInput = $_POST['roles'] ?? '';
+        $this->roles = array_map('intval', explode(',', $rolesInput)); // Convert roles to an array of integers
+    
         if (isset($_FILES['avatar'])) {
             $fileUploadHelper = new FileUploadHelper();
             $this->avatar = $fileUploadHelper->uploadFile($_FILES['avatar'], 'avatar');
         }
-
+    
         if ($this->create()) {
             response('success', 'User created successfully.', null, 201);
         } else {
             response('error', 'User creation failed.', null, 400);
         }
     }
-
+    
     private function create() {
         $query = "INSERT INTO " . $this->table_name . " (username, email, password, about, avatar) 
                   VALUES(:username, :email, :password, :about, :avatar)";
@@ -176,79 +179,114 @@ class UserController {
     
 
     private function assignRoles() {
-        foreach ($this->roles as $role_id) {
-            $query = "INSERT INTO user_roles (user_id, role_id) VALUES (:user_id, :role_id)";
-            $stmt = $this->conn->prepare($query);
+        // First, delete any existing roles for this user
+        $deleteQuery = "DELETE FROM user_roles WHERE user_id = :user_id";
+        $stmt = $this->conn->prepare($deleteQuery);
+        $stmt->bindParam(":user_id", $this->user_id);
+        $stmt->execute();
+    
+        // If no roles are provided, return true (nothing to update)
+        if (empty($this->roles)) {
+            return true;
+        }
+    
+        // Assign new roles to the user
+        $insertQuery = "INSERT INTO user_roles (user_id, role_id) VALUES (:user_id, :role_id)";
+        $stmt = $this->conn->prepare($insertQuery);
+    
+        foreach ($this->roles as $roleId) {
             $stmt->bindParam(":user_id", $this->user_id);
-            $stmt->bindParam(":role_id", $role_id);
+            $stmt->bindParam(":role_id", $roleId);
+    
             if (!$stmt->execute()) {
-                return false;
+                return false;  // Return false if any insert fails
             }
         }
+    
         return true;
     }
 
     public function updateUser($id) {
         $roles = $this->getRoles();
         $userIdFromJWT = $this->getUserId();
-
+    
         if (!in_array('Superadmin', $roles) && $userIdFromJWT != $id) {
             response('error', 'Unauthorized access.', null, 403);
             return;
         }
-
-        parse_str(file_get_contents("php://input"), $data);
-
-        $this->username = htmlspecialchars(strip_tags($data['username'] ?? ''));
-        $this->email = htmlspecialchars(strip_tags($data['email'] ?? ''));
-        $this->password = htmlspecialchars(strip_tags($data['password'] ?? ''));
-        $this->about = htmlspecialchars(strip_tags($data['about'] ?? ''));
-
+    
+        $this->username = htmlspecialchars(strip_tags($_POST['username'] ?? ''));
+        $this->email = htmlspecialchars(strip_tags($_POST['email'] ?? ''));
+        $this->password = htmlspecialchars(strip_tags($_POST['password'] ?? ''));
+        $this->about = htmlspecialchars(strip_tags($_POST['about'] ?? ''));
+    
+        // Convert roles input (e.g., "1,3") to an array
+        $rolesInput = $_POST['roles'] ?? '';
+        $this->roles = array_map('intval', explode(',', $rolesInput)); // Convert roles to an array of integers
+    
+        // Set user_id to the provided id (needed for the assignRoles method)
+        $this->user_id = $id;  // Ensure user_id is set correctly
+    
         // If avatar is provided, handle the upload
         if (isset($_FILES['avatar'])) {
             $fileUploadHelper = new FileUploadHelper();
             $this->avatar = $fileUploadHelper->uploadFile($_FILES['avatar'], 'avatar');
         }
-
+    
         // If the update is successful
         if ($this->update($id)) {
-            response('success', 'User updated successfully.', null, 200);
+            if ($this->assignRoles()) {  // Update roles
+                response('success', 'User updated successfully.', null, 200);
+            } else {
+                response('error', 'User update failed while updating roles.', null, 400);
+            }
         } else {
             response('error', 'User update failed.', null, 400);
         }
     }
-
-    private function update($id) {
-        // Base query to update user data
-        $query = "UPDATE " . $this->table_name . " SET username = :username, email = :email, about = :about WHERE user_id = :user_id";
     
+    
+    private function update($id) {
+        // Start building the base query
+        $query = "UPDATE " . $this->table_name . " SET username = :username, email = :email, about = :about";
+        
         // Add avatar to the query if provided
         if ($this->avatar) {
             $query .= ", avatar = :avatar";  // Append avatar update only if it's provided
         }
-    
+        
+        // Add password to the query if provided
+        if (!empty($this->password)) {
+            $query .= ", password = :password";  // Append password update only if it's provided
+        }
+        
+        // Finalize the query with the WHERE clause
+        $query .= " WHERE user_id = :user_id";
+        
         // Prepare the SQL statement
         $stmt = $this->conn->prepare($query);
-    
+        
         // Bind the parameters
         $stmt->bindParam(":username", $this->username);
         $stmt->bindParam(":email", $this->email);
         $stmt->bindParam(":about", $this->about);
         $stmt->bindParam(":user_id", $id);
-    
-        // Bind password if it's provided
+        
+        // Bind password if provided
         if (!empty($this->password)) {
-            $stmt->bindParam(":password", password_hash($this->password, PASSWORD_BCRYPT));
+            $hashedPassword = password_hash($this->password, PASSWORD_BCRYPT);
+            $stmt->bindParam(":password", $hashedPassword);
         }
-    
-        // Bind avatar if it's provided
+        
+        // Bind avatar if provided
         if ($this->avatar) {
             $stmt->bindParam(":avatar", $this->avatar);
         }
-    
+        
         // Execute the update query
         return $stmt->execute();
     }
+    
     
 
     public function deleteUser($id) {
