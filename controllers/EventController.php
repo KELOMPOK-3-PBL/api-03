@@ -22,6 +22,32 @@ class EventController {
         return $this->jwtHelper->getUserId(); // Use JWTHelper to get user ID
     }
 
+    public function getEventCountsByStatus() {
+        // Prepare SQL to count events grouped by status
+        $query = "
+            SELECT 
+                s.status_id, 
+                s.status_name, 
+                COUNT(e.event_id) AS event_count
+            FROM 
+                status s
+            LEFT JOIN 
+                event e ON s.status_id = e.status
+            GROUP BY 
+                s.status_id, s.status_name
+            ORDER BY 
+                s.status_id ASC
+        ";
+    
+        $stmt = $this->db->prepare($query);
+        $stmt->execute();
+        $counts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+        // Send response with the counts
+        response('success', 'Event counts by status retrieved successfully.', $counts, 200);
+    }
+
+
     // Get all events with optional filters
     public function getAllEvents() {
         // Retrieve filters from query parameters
@@ -243,8 +269,6 @@ class EventController {
         response('success', 'All proposed events retrieved for Admin.', $events, 200);
     }
     
-    
-
     // Get event by ID
     public function getEventById($eventId) {
         $this->jwtHelper->decodeJWT(); // Verify JWT
@@ -340,18 +364,17 @@ class EventController {
     public function updateEvent($eventId) {
         $this->jwtHelper->decodeJWT(); // Verify JWT
         $roles = $this->getRoles(); // Get roles from JWT
-    
-        // Check if the user has 'Propose' role for general event modification
+        
         if (!in_array('Propose', $roles) && !in_array('Admin', $roles)) {
             response('error', 'Unauthorized.', null, 403);
             return;
         }
-    
+        
         // Fetch current event data by eventId
         $stmt = $this->db->prepare("SELECT * FROM event WHERE event_id = ?");
         $stmt->execute([$eventId]);
         $event = $stmt->fetch();
-    
+        
         if (!$event) {
             response('error', 'Event not found.', null, 404);
             return;
@@ -360,17 +383,6 @@ class EventController {
         // Use $_POST for non-file data
         $title = $_POST['title'] ?? $event['title'];
         $description = $_POST['description'] ?? $event['description'];
-        
-        // Check if the 'poster' file exists in $_FILES for an update
-        if (isset($_FILES['poster'])) {
-            // Remove the old poster if it's being updated
-            $fileUploadHelper = new FileUploadHelper(); // No path argument needed
-            $poster = $fileUploadHelper->uploadFile($_FILES['poster'], 'poster');
-        } else {
-            // Keep the old poster if not updating
-            $poster = $event['poster'];
-        }
-    
         $location = $_POST['location'] ?? $event['location'];
         $place = $_POST['place'] ?? $event['place'];
         $quota = (int)($_POST['quota'] ?? $event['quota']);
@@ -378,26 +390,45 @@ class EventController {
         $dateEnd = $_POST['date_end'] ?? $event['date_end'];
         $schedule = $_POST['schedule'] ?? $event['schedule'];
         $categoryId = $_POST['category_id'] ?? $event['category_id'];
-    
         $proposeUserId = $this->getUserId(); // Get user ID from JWT
         $dateAdd = $event['date_add']; // Keep original add date
-        $status = $event['status']; // Keep original status (or modify if needed)
     
-        // Check for required fields
         if (empty($title) || empty($description) || empty($dateStart) || empty($dateEnd) || $quota <= 0) {
             response('error', 'All fields are required and quota must be greater than 0.', null, 400);
             return;
         }
     
-        // Admin role: Update admin_user_id, note, and set status to 2
-        if (in_array('Admin', $roles)) {
-            $adminUserId = $this->getUserId(); // The admin user making the update
-            $note = $_POST['note'] ?? ''; // Note can be updated by Admin
-            $status = 2; // Set status to 2 for Admin updates
+        // Check if the 'poster' file exists in $_FILES for an update
+        if (isset($_FILES['poster'])) {
+            $fileUploadHelper = new FileUploadHelper();
+            $poster = $fileUploadHelper->uploadFile($_FILES['poster'], 'poster');
+            // If updating poster, delete the old one
+            $fileUploadHelper->deleteFile($event['poster']);
         } else {
-            $adminUserId = $event['admin_user_id']; // Keep the existing admin_user_id
-            $note = $event['note']; // Keep the existing note
+            $poster = $event['poster'];
         }
+    
+        // Determine the status based on role and request
+        if (in_array('Admin', $roles)) {
+            $adminUserId = $this->getUserId();
+            $note = $_POST['note'] ?? '';
+            $status = $_POST['status'] ?? 2; // Admin can set status to 2, 4, or 5
+    
+            if (!in_array($status, [2, 4, 5])) {
+                response('error', 'Invalid status for Admin role.', null, 400);
+                return;
+            }
+        } elseif (in_array('Propose', $roles)) {
+            $adminUserId = $event['admin_user_id'];
+            $note = $event['note'];
+            $status = 3; // Propose users can only set status to 3
+        }
+    
+        // // Check if the current date is past the event's end date
+        // $currentDate = date('Y-m-d');
+        // if ($currentDate > $dateEnd) {
+        //     $status = 6; // Automatically set status to 6 if the event has ended
+        // }
     
         // Update event in the database
         $stmt = $this->db->prepare("
@@ -418,16 +449,34 @@ class EventController {
                 status = ?
             WHERE event_id = ?
         ");
-    
+        
         if ($stmt->execute([
             $title, $description, $poster, $location, $place, $quota, $dateStart, $dateEnd, $schedule, 
             $categoryId, $adminUserId, $note, $dateAdd, $status, $eventId
         ])) {
-            response('success', 'Event updated successfully.', null, 200);
+            $updatedEvent = [
+                'event_id' => $eventId,
+                'title' => $title,
+                'description' => $description,
+                'poster' => $poster,
+                'location' => $location,
+                'place' => $place,
+                'quota' => $quota,
+                'date_start' => $dateStart,
+                'date_end' => $dateEnd,
+                'schedule' => $schedule,
+                'category_id' => $categoryId,
+                'admin_user_id' => $adminUserId,
+                'note' => $note,
+                'date_add' => $dateAdd,
+                'status' => $status
+            ];
+            response('success', 'Event updated successfully.', $updatedEvent, 200);
         } else {
             response('error', 'Failed to update event.', null, 500);
         }
     }
+    
     
     
     // Delete an event by ID
