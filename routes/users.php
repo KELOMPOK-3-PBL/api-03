@@ -10,10 +10,13 @@ $userController = new UserController($db);
 // Handle HTTP methods
 $request_method = $_SERVER["REQUEST_METHOD"];
 $user_id = isset($_GET['user_id']) ? $_GET['user_id'] : null;
+$query = isset($_GET['query']) ? $_GET['query'] : null;
 
 switch ($request_method) {
     case 'GET':
-        if ($user_id) {
+        if ($query !== null) {
+            $userController->searchUsers($query);  // Search users
+        } elseif ($user_id !== null) {
             $userController->getUserById($user_id);  // GET a specific user
         } else {
             $userController->getAllUsers();  // GET all users

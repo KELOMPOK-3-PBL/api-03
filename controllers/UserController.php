@@ -101,7 +101,6 @@ class UserController {
     
         response(empty($users) ? 'error' : 'success', empty($users) ? 'No users found.' : 'Users retrieved successfully', $users, 200);
     }
-    
 
     public function getUserById($id) {
         $roles = $this->getRoles();
@@ -126,6 +125,33 @@ class UserController {
         response($user ? 'success' : 'error', $user ? 'User found.' : 'User not found.', $user, $user ? 200 : 404);
     }
 
+    public function searchUsers($query) {
+        $sql = "SELECT username FROM user WHERE username LIKE :query LIMIT 50";
+    
+        $stmt = $this->conn->prepare($sql);
+        if (!$stmt) {
+            response('error', 'Failed to prepare statement.', null, 500);
+            return;
+        }
+    
+        $likeQuery = "%" . $query . "%";
+        $stmt->bindParam(':query', $likeQuery, PDO::PARAM_STR);
+    
+        if (!$stmt->execute()) {
+            response('error', 'Failed to execute query.', null, 500);
+            return;
+        }
+    
+        $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if (!$users) {
+            response('error', 'No results found.', null, 404);
+            return;
+        }
+    
+        $usernames = array_column($users, 'username');
+        response('success', 'Users found.', $usernames, 200);
+    }    
+    
     public function createUser() {
         $roles = $this->getRoles();
         if (!in_array('Superadmin', $roles)) {
@@ -175,8 +201,7 @@ class UserController {
         }
     
         return false;
-    }
-    
+    }   
 
     private function assignRoles() {
         // First, delete any existing roles for this user
