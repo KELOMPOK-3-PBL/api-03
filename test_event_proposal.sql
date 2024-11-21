@@ -56,21 +56,21 @@ CREATE TABLE IF NOT EXISTS `event` (
   CONSTRAINT `event_ibfk_3` FOREIGN KEY (`status`) REFERENCES `status` (`status_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=30 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Dumping data for table testpbl.event: ~13 rows (approximately)
+-- Dumping data for table testpbl.event: ~14 rows (approximately)
 INSERT INTO `event` (`event_id`, `propose_user_id`, `title`, `date_add`, `category_id`, `description`, `poster`, `location`, `place`, `quota`, `date_start`, `date_end`, `schedule`, `updated`, `admin_user_id`, `note`, `status`) VALUES
 	(1, 4, 'Workshop on Web Development', '2024-10-23 21:18:35', 1, 'A workshop to learn modern web development.', 'poster1.jpg', 'City Hall', 'Main Auditorium', 50, '2024-10-24 21:18:35', '2024-10-30 21:18:35', NULL, NULL, NULL, NULL, 4),
-	(2, 5, 'Annual Tech Conference', '2024-10-23 21:18:35', 2, 'Join us for the annual tech conference with industry leaders.', 'poster2.jpg', 'Convention Center', 'Grand Ballroom', 200, '2024-10-25 21:18:35', '2024-11-06 21:18:35', NULL, NULL, NULL, NULL, 4),
-	(3, 6, 'Monthly Webinar Series', '2024-10-23 21:18:35', 3, 'A series of webinars on various tech topics.', 'poster3.jpg', 'Online', 'Virtual Room', 100, '2024-10-26 21:18:35', '2024-11-23 21:18:35', NULL, NULL, NULL, NULL, 1),
-	(18, 4, ' syk 2024', '2024-11-01 07:09:00', 3, ' This is a detailed description of the Tech Conference 2024.', '/pbl/images/poster/20241101_070900.jpg', ' kandok', ' Teknik Elektro', 200, '2024-12-10 09:00:00', '2024-12-12 17:00:00', NULL, NULL, NULL, NULL, 1),
-	(20, 5, 'test', '2024-11-01 07:24:53', 3, ' This is a detailed description of the Tech Conference 2024.', '/pbl/images/poster/20241101_072453.jpg', ' kandok', ' Teknik Elektro', 200, '2024-12-10 09:00:00', '2024-12-12 17:00:00', NULL, NULL, NULL, NULL, 1),
-	(21, 5, 'test', '2024-11-01 07:25:36', 3, ' This is a detailed description of the Tech Conference 2024.', '/pbl/images/poster/20241101_072536.jpg', ' kandok', ' Teknik Elektro', 200, '2024-12-10 09:00:00', '2024-12-12 17:00:00', NULL, NULL, NULL, NULL, 1),
-	(22, 4, ' test', '2024-11-01 07:27:33', 3, ' This is a detailed description of the Tech Conference 2024.', '/pbl/images/poster/20241101_072733.jpg', ' kandok', ' Teknik Elektro', 200, '2024-12-10 09:00:00', '2024-12-12 17:00:00', NULL, NULL, NULL, NULL, 1),
-	(23, 4, ' test', '2024-11-01 07:28:09', 3, ' This is a detailed description of the Tech Conference 2024.', '/pbl/images/poster/20241101_072809.jpg', ' kandok', ' Teknik Elektro', 200, '2024-12-10 09:00:00', '2024-12-12 17:00:00', NULL, NULL, NULL, NULL, 1),
+	(2, 5, 'Annual Tech Conference', '2024-10-23 21:18:35', 3, ' This is a detailed description of the Tech Conference 2024.', '/pbl/images/poster/20241118_154126.jpg', ' kandok', ' Teknik Elektro', 100, '2024-12-10 09:00:00', '2024-12-12 17:00:00', NULL, NULL, NULL, NULL, 3),
+	(3, 6, 'Monthly Webinar Series', '2024-10-23 21:18:35', 3, 'A series of webinars on various tech topics.', 'poster3.jpg', 'Online', 'Virtual Room', 100, '2024-10-26 21:18:35', '2024-11-23 21:18:35', NULL, NULL, NULL, NULL, 5),
+	(18, 4, ' syk 2024', '2024-11-01 07:09:00', 3, ' This is a detailed description of the Tech Conference 2024.', '/pbl/images/poster/20241101_070900.jpg', ' kandok', ' Teknik Elektro', 200, '2024-12-10 09:00:00', '2024-12-12 17:00:00', NULL, NULL, NULL, NULL, 5),
+	(20, 5, 'test', '2024-11-01 07:24:53', 3, ' This is a detailed description of the Tech Conference 2024.', '/pbl/images/poster/20241101_072453.jpg', ' kandok', ' Teknik Elektro', 200, '2024-12-10 09:00:00', '2024-12-12 17:00:00', NULL, NULL, NULL, NULL, 6),
+	(21, 5, 'test', '2024-11-01 07:25:36', 3, ' This is a detailed description of the Tech Conference 2024.', '/pbl/images/poster/20241101_072536.jpg', ' kandok', ' Teknik Elektro', 200, '2024-12-10 09:00:00', '2024-12-12 17:00:00', NULL, NULL, NULL, NULL, 4),
+	(22, 4, ' test', '2024-11-01 07:27:33', 3, ' This is a detailed description of the Tech Conference 2024.', '/pbl/images/poster/20241101_072733.jpg', ' kandok', ' Teknik Elektro', 200, '2024-12-10 09:00:00', '2024-12-12 17:00:00', NULL, NULL, NULL, NULL, 4),
+	(23, 4, ' test', '2024-11-01 07:28:09', 3, ' This is a detailed description of the Tech Conference 2024.', '/pbl/images/poster/20241101_072809.jpg', ' kandok', ' Teknik Elektro', 200, '2024-12-10 09:00:00', '2024-12-12 17:00:00', NULL, NULL, NULL, NULL, 6),
 	(24, 4, ' test2', '2024-11-01 07:33:15', 3, ' This is a detailed description of the Tech Conference 2024.', '/pbl/images/poster/20241101_073315.jpg', ' kandok', ' Teknik Elektro', 200, '2024-12-10 09:00:00', '2024-12-12 17:00:00', NULL, NULL, NULL, NULL, 1),
 	(25, 4, ' test10', '2024-11-01 07:44:20', 3, ' This is a detailed description of the Tech Conference 2024.', '/pbl/images/poster/20241101_074420.jpg', ' kandok', ' Teknik Elektro', 200, '2024-12-10 09:00:00', '2024-12-12 17:00:00', NULL, NULL, NULL, NULL, 1),
 	(26, 4, 'test3', '2024-11-02 02:27:57', 3, ' This is a detailed description of the Tech Conference 2024.', '/pbl/images/poster/20241102_022757.jpg', ' kandok', ' Teknik Elektro', 200, '2024-12-10 09:00:00', '2024-12-12 17:00:00', NULL, NULL, NULL, NULL, 1),
-	(27, 5, 'testing sir', '2024-11-02 16:47:17', 3, ' This is a detailed description of the Tech Conference 2024.', '/pbl/images/poster/20241102_164717.jpg', ' kandok', ' Teknik Elektro', 200, '2024-12-10 09:00:00', '2024-12-12 17:00:00', NULL, '2024-11-04 14:21:36', NULL, NULL, 1),
-	(28, 5, ' testing123', '2024-11-04 14:22:37', 3, ' This is a detailed description of the Tech Conference 2024.', '/pbl/images/poster/20241107_032501.jpg', ' kandok', ' Teknik Elektro', 100, '2024-12-10 09:00:00', '2024-12-12 17:00:00', NULL, '2024-11-06 15:08:04', NULL, NULL, 1),
+	(27, 5, 'testing sir', '2024-11-02 16:47:17', 3, ' This is a detailed description of the Tech Conference 2024.', '/pbl/images/poster/20241102_164717.jpg', ' kandok', ' Teknik Elektro', 200, '2024-12-10 09:00:00', '2024-12-12 17:00:00', NULL, '2024-11-04 07:21:36', NULL, NULL, 1),
+	(28, 5, ' testing123', '2024-11-04 14:22:37', 3, ' This is a detailed description of the Tech Conference 2024.', '/pbl/images/poster/20241107_032501.jpg', ' kandok', ' Teknik Elektro', 100, '2024-12-10 09:00:00', '2024-12-12 17:00:00', NULL, '2024-11-06 08:08:04', NULL, NULL, 1),
 	(29, 5, 'another test', '2024-11-07 03:38:28', 3, ' This is a detailed description of the Tech Conference 2024.', '/pbl/images/poster/20241107_033907.jpg', ' kandok', ' Teknik Elektro', 100, '2024-12-10 09:00:00', '2024-12-12 17:00:00', '', NULL, 7, 'test', 2);
 
 -- Dumping structure for table testpbl.invited
@@ -84,14 +84,6 @@ CREATE TABLE IF NOT EXISTS `invited` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Dumping data for table testpbl.invited: ~9 rows (approximately)
-INSERT INTO `invited` (`event_id`, `user_id`) VALUES
-	(1, 4),
-	(3, 4),
-	(1, 5),
-	(2, 5),
-	(1, 6),
-	(3, 6),
-	(2, 7);
 
 -- Dumping structure for table testpbl.roles
 CREATE TABLE IF NOT EXISTS `roles` (
@@ -112,11 +104,11 @@ CREATE TABLE IF NOT EXISTS `status` (
   `status_id` int NOT NULL AUTO_INCREMENT,
   `status_name` varchar(50) NOT NULL,
   PRIMARY KEY (`status_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Dumping data for table testpbl.status: ~5 rows (approximately)
+-- Dumping data for table testpbl.status: ~6 rows (approximately)
 INSERT INTO `status` (`status_id`, `status_name`) VALUES
-  (1, 'Proposed'),
+	(1, 'Proposed'),
 	(2, 'Reviewing'),
 	(3, 'Pending'),
 	(4, 'Rejected'),
@@ -132,9 +124,9 @@ CREATE TABLE IF NOT EXISTS `user` (
   `avatar` varchar(50) DEFAULT NULL,
   `about` text,
   PRIMARY KEY (`user_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Dumping data for table testpbl.user: ~8 rows (approximately)
+-- Dumping data for table testpbl.user: ~11 rows (approximately)
 INSERT INTO `user` (`user_id`, `username`, `email`, `password`, `avatar`, `about`) VALUES
 	(4, 'test1', 'test1@gmail.com', '$2y$10$963z9f2cVKJHQnV7wTBy8O8Au6H9MXmfMe56OOZa4fzT0.1qdMeC2', NULL, 'bio'),
 	(5, 'test2', 'member_propose@gmail.com', '$2y$10$wkOrnTg3HMQSenfmxqTIT.ICuiwJXagzRe0G.ZXeEpraoWosF6ejm', NULL, 'bio'),
@@ -142,8 +134,11 @@ INSERT INTO `user` (`user_id`, `username`, `email`, `password`, `avatar`, `about
 	(7, 'test4', 'member_admin@gmail.com', '$2y$10$Fs.L0rw0ZgpJE9s0Y6zGHu8YDiF.8ftc2086nb2WB6fC3tj/BKRQi', NULL, 'bio'),
 	(10, 'test6', 'superadmin@gmail.com', '$2y$10$fgx.rgMkjihgZd1JsSFTVOPxptu5Esq6hcmeVfKkxl3VMbdif5Bcu', NULL, 'bio'),
 	(13, 'coba', 'testdelete@gmail.com', '$2y$10$LR8ovDSrr5g2AnpMq5IgSedFSDLzScjCUENBUvRS6d9K/U42IP1hS', NULL, 'testing'),
-	(14, '', '', '$2y$10$dteaoEiektFXgYxib4Zo7Oft6leihyk3wxIXbtu6aLu70CDzA.tUW', '/pbl/images/avatar/20241107_165712.jpg', ''),
-	(15, 'sekedarcoba1', 'testdelete1@gmail.com', '$2y$10$n/UrQLCew.EIDYBGXzhVFOl0UCNs.aea4g8CbJ5ZrquBEo6G4E142', '/pbl/images/avatar/20241107_175439.jpg', 'test');
+	(15, 'sekedarcoba2', 'testingdelete@gmail.com', '$2y$10$29SsgubdwROojQPW.WB2QOdbRcKSDYygYBSSjIZTugApXmz.19.8W', '/pbl/images/avatar/20241110_125736.jpg', 'test'),
+	(16, 'sekedarcoba2', 'testdelete2@gmail.com', '$2y$10$xpd62Dojzx8yr87S3TlzE.n1ULg2ihZGjZ69o9lU1kkjlNY/2i5aC', '/pbl/images/avatar/20241110_042435.jpg', 'test'),
+	(17, 'sekedartest1', 'testdelete3@gmail.com', '$2y$10$oSp2qOedFwi9i9dboiwgo.qASUpVhZc6vU6/Vubmnfo8Xqw.521z2', '/pbl/images/avatar/20241110_044119.jpg', 'test'),
+	(18, 'sekedartest2', 'testdelete4@gmail.com', '$2y$10$zHhgPknUCBL0TeWdQY7N0.jGLi3F/YcEpzZma/PuUzyYZOOLNZ2bu', '/pbl/images/avatar/20241110_044255.jpg', 'test'),
+	(19, 'sekedartest2', 'testdelete4@gmail.com', '$2y$10$J1oTWsgwd/BylrWi8Ghk2uueYFtBxq31YsaijAFwXEa91212CsrVu', '/pbl/images/avatar/20241110_044536.jpg', 'test');
 
 -- Dumping structure for table testpbl.user_roles
 CREATE TABLE IF NOT EXISTS `user_roles` (
@@ -156,7 +151,7 @@ CREATE TABLE IF NOT EXISTS `user_roles` (
   CONSTRAINT `user_roles_ibfk_2` FOREIGN KEY (`role_id`) REFERENCES `roles` (`role_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Dumping data for table testpbl.user_roles: ~9 rows (approximately)
+-- Dumping data for table testpbl.user_roles: ~12 rows (approximately)
 INSERT INTO `user_roles` (`user_id`, `role_id`) VALUES
 	(4, 1),
 	(4, 2),
@@ -167,7 +162,11 @@ INSERT INTO `user_roles` (`user_id`, `role_id`) VALUES
 	(6, 2),
 	(7, 1),
 	(7, 3),
-	(10, 4);
+	(10, 4),
+	(15, 1),
+	(15, 3),
+	(19, 1),
+	(19, 3);
 
 /*!40103 SET TIME_ZONE=IFNULL(@OLD_TIME_ZONE, 'system') */;
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;

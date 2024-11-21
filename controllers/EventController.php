@@ -222,17 +222,14 @@ class EventController {
             LEFT JOIN category c ON e.category_id = c.category_id
             LEFT JOIN user a ON e.admin_user_id = a.user_id
             LEFT JOIN status s ON e.status = s.status_id
-            WHERE 1=1";
+            WHERE 1=1"; // Base query for flexibility
         
         $params = [];
     
         if ($adminUserId) {
-            // Jika admin_user_id disertakan, hanya tampilkan event yang sesuai admin_user_id, exclude status = 1
-            $query .= " AND e.admin_user_id = :adminUserId AND e.status != 1";
+            // Jika admin_user_id ada, hanya tampilkan event sesuai admin_user_id
+            $query .= " AND e.admin_user_id = :adminUserId";
             $params[':adminUserId'] = $adminUserId;
-        } else {
-            // Jika admin_user_id tidak disertakan, hanya tampilkan event dengan status = 1
-            $query .= " AND e.status = 1";
         }
     
         if ($category) {
