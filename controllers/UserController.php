@@ -207,45 +207,73 @@ class UserController {
     }
 
     public function updateUser($id) {
+        // Get roles and user ID from JWT
         $roles = $this->getRoles();
         $userIdFromJWT = $this->getUserId();
     
+        // Check if user is authorized to update based on their role
         if (!in_array('Superadmin', $roles) && $userIdFromJWT != $id) {
             response('error', 'Unauthorized access.', null, 403);
             return;
         }
     
-        $this->username = htmlspecialchars(strip_tags($_POST['username'] ?? ''));
-        $this->email = htmlspecialchars(strip_tags($_POST['email'] ?? ''));
-        $this->password = htmlspecialchars(strip_tags($_POST['password'] ?? ''));
-        $this->about = htmlspecialchars(strip_tags($_POST['about'] ?? ''));
+        // Fetch the current user data from the database
+        $currentUserData = $this->getUserDataById($id);
+        
+        if (!$currentUserData) {
+            response('error', 'User not found.', null, 404);
+            return;
+        }
     
-        // Convert roles input (e.g., "1,3") to an array
+        // Initialize user fields with existing data if no new data is provided
+        // For Superadmin, allow all updates
+        if (in_array('Superadmin', $roles)) {
+            $this->username = htmlspecialchars(strip_tags($_POST['username'] ?? $currentUserData['username']));
+            $this->email = htmlspecialchars(strip_tags($_POST['email'] ?? $currentUserData['email']));
+        }
+    
+        // Members can only update their password, about, and avatar
+        $this->password = htmlspecialchars(strip_tags($_POST['password'] ?? $currentUserData['password']));
+        $this->about = htmlspecialchars(strip_tags($_POST['about'] ?? $currentUserData['about']));
+    
+        // Convert roles input (e.g., "1,3") to an array if it's a superadmin
         $rolesInput = $_POST['roles'] ?? '';
-        $this->roles = array_map('intval', explode(',', $rolesInput)); // Convert roles to an array of integers
+        if (in_array('Superadmin', $roles)) {
+            $this->roles = array_map('intval', explode(',', $rolesInput)); // Convert roles to an array of integers
+        } else {
+            $this->roles = []; // If not superadmin, roles should remain empty
+        }
     
         // Set user_id to the provided id (needed for the assignRoles method)
         $this->user_id = $id;  // Ensure user_id is set correctly
     
         // If avatar is provided, handle the upload
         if (isset($_FILES['avatar'])) {
+            // Fetch the current avatar file path (you can fetch this from the database or existing user data)
+            $oldAvatar = $currentUserData['avatar'] ?? null;
+            
+            // Upload the new avatar and delete the old one if provided
             $fileUploadHelper = new FileUploadHelper();
-            $this->avatar = $fileUploadHelper->uploadFile($_FILES['avatar'], 'avatar');
+            $this->avatar = $fileUploadHelper->uploadFile($_FILES['avatar'], 'avatar', $oldAvatar);
+        } else {
+            $this->avatar = $currentUserData['avatar']; // If no new avatar is uploaded, retain the old one
         }
     
         // If the update is successful
         if ($this->update($id)) {
-            if ($this->assignRoles()) {  // Update roles
-                response('success', 'User updated successfully.', null, 200);
-            } else {
+            if (!empty($this->roles) && !$this->assignRoles()) {
+                // If roles were updated, and assigning them failed, return an error
                 response('error', 'User update failed while updating roles.', null, 400);
+            } else {
+                // If roles were not updated or assignment was successful
+                $updatedUserData = $this->getUserDataById($id); // Fetch updated user data
+                response('success', 'User updated successfully.', $updatedUserData, 200);
             }
         } else {
             response('error', 'User update failed.', null, 400);
         }
     }
-    
-    
+       
     private function update($id) {
         // Start building the base query
         $query = "UPDATE " . $this->table_name . " SET username = :username, email = :email, about = :about";
@@ -287,6 +315,15 @@ class UserController {
         return $stmt->execute();
     }
     
+    private function getUserDataById($id) {
+        // Query to fetch the user data based on user_id
+        $query = "SELECT * FROM " . $this->table_name . " WHERE user_id = :user_id";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(":user_id", $id);
+        $stmt->execute();
+        
+        return $stmt->fetch(PDO::FETCH_ASSOC); // Return the user data as an associative array
+    }
     
 
     public function deleteUser($id) {

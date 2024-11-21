@@ -208,6 +208,7 @@ class EventController {
         $sortOrder = isset($_GET['sort_order']) ? $_GET['sort_order'] : 'ASC';
         $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : null;
         $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
+        $adminUserId = isset($_GET['admin_user_id']) ? (int)$_GET['admin_user_id'] : null;
     
         $query = "
             SELECT 
@@ -222,8 +223,17 @@ class EventController {
             LEFT JOIN user a ON e.admin_user_id = a.user_id
             LEFT JOIN status s ON e.status = s.status_id
             WHERE 1=1";
-    
+        
         $params = [];
+    
+        if ($adminUserId) {
+            // Jika admin_user_id disertakan, hanya tampilkan event yang sesuai admin_user_id, exclude status = 1
+            $query .= " AND e.admin_user_id = :adminUserId AND e.status != 1";
+            $params[':adminUserId'] = $adminUserId;
+        } else {
+            // Jika admin_user_id tidak disertakan, hanya tampilkan event dengan status = 1
+            $query .= " AND e.status = 1";
+        }
     
         if ($category) {
             $query .= " AND c.category_name = :category";
@@ -266,7 +276,7 @@ class EventController {
         $stmt->execute();
         $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-        response('success', 'All proposed events retrieved for Admin.', $events, 200);
+        response('success', 'Events retrieved successfully.', $events, 200);
     }
     
     // Get event by ID

@@ -7,7 +7,7 @@ class FileUploadHelper {
         $this->uploadDir = realpath($uploadDir ?? __DIR__ . '/../../images') . '/';
     }
 
-    public function uploadFile($file, $type = 'poster') {
+    public function uploadFile($file, $type = 'poster', $oldFilePath = null) {
         $allowedTypes = ['image/jpeg', 'image/png'];
         $fileType = mime_content_type($file['tmp_name']);
     
@@ -24,6 +24,16 @@ class FileUploadHelper {
             mkdir($targetDir, 0775, true);
         }
     
+        // If an old file path is provided, delete the old file
+        if ($oldFilePath && file_exists($this->uploadDir . $oldFilePath)) {
+            // Ensure that we don't delete a non-existing file
+            if (unlink($this->uploadDir . $oldFilePath)) {
+                error_log("Old file deleted: " . $oldFilePath); // Log successful deletion
+            } else {
+                error_log("Failed to delete old file: " . $oldFilePath); // Log failure
+            }
+        }
+
         // Generate file name based on date and time
         $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         $fileName = date('Ymd_His') . '.' . $extension;
@@ -44,6 +54,25 @@ class FileUploadHelper {
             return null; // Return null if the upload fails
         }
     }
-    
+
+    public function deleteFile($filePath) {
+        $fullPath = "../images/poster/" . $filePath;
+
+        if (file_exists($fullPath)) {
+            // If the file exists, delete it
+            unlink($fullPath);
+            return [
+                'status' => 'success',
+                'message' => 'File deleted successfully.'
+            ];
+        } else {
+            // If the file doesn't exist, return a response indicating so
+            return [
+                'status' => 'error',
+                'message' => 'File not found.'
+            ];
+        }
+    }
+
 }
 ?>

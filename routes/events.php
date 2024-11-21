@@ -37,23 +37,23 @@ switch ($request_method) {
         }
         break;
 
-        case 'POST':
-            if ($event_id) {
-                // Update event if an event_id is provided and the user has the appropriate role
-                if (in_array('Admin', $user_roles) || in_array('Propose', $user_roles)) { // Check for roles
-                    $eventController->updateEvent($event_id);
-                } else {
-                    response('error', 'Unauthorized to update events.', null, 403); // User not authorized
-                }
+    case 'POST':
+        if ($event_id) {
+            // Update event if an event_id is provided and the user has the appropriate role
+            if (in_array('Admin', $user_roles) || in_array('Propose', $user_roles)) { // Check for roles
+                $eventController->updateEvent($event_id);
             } else {
-                // No event_id provided, so create a new event
-                if (in_array('Propose', $user_roles)) { // Check if user has 'Propose' role
-                    $eventController->createEvent(); // Call createEvent method
-                } else {
-                    response('error', 'Unauthorized to create events.', null, 403); // User not authorized
-                }
+                response('error', 'Unauthorized to update events.', null, 403); // User not authorized
             }
-            break;
+        } else {
+            // No event_id provided, so create a new event
+            if (in_array('Propose', $user_roles)) { // Check if user has 'Propose' role
+                $eventController->createEvent(); // Call createEvent method
+            } else {
+                response('error', 'Unauthorized to create events.', null, 403); // User not authorized
+            }
+        }
+        break;
 
     case 'DELETE':
         if ($event_id) {

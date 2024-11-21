@@ -39,16 +39,15 @@ class AuthController {
         ];
     
         // If expiration is provided, set it; otherwise, it will default to a session cookie
-        if ($expiration) {
-            $cookieParams['expires'] = time() + $expiration;
-        }
+        // if ($expiration) {
+        //     $cookieParams['expires'] = time() + $expiration;
+        // }
     
         // Set the cookie
         setcookie('jwt', $jwt, $cookieParams);
     }
 
     // User login
-// User login
     public function login() {
         $data = json_decode(file_get_contents("php://input"), true);
         

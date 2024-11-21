@@ -116,11 +116,12 @@ CREATE TABLE IF NOT EXISTS `status` (
 
 -- Dumping data for table testpbl.status: ~5 rows (approximately)
 INSERT INTO `status` (`status_id`, `status_name`) VALUES
-	(1, 'Reviewing'),
-	(2, 'Pending'),
-	(3, 'Rejected'),
-	(4, 'Approved'),
-	(5, 'Completed');
+  (1, 'Proposed'),
+	(2, 'Reviewing'),
+	(3, 'Pending'),
+	(4, 'Rejected'),
+	(5, 'Approved'),
+	(6, 'Completed');
 
 -- Dumping structure for table testpbl.user
 CREATE TABLE IF NOT EXISTS `user` (
