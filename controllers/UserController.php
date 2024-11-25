@@ -99,18 +99,23 @@ class UserController {
         $stmt->execute();
         $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
+        // Remove the password field from each user
+        foreach ($users as &$user) {
+            unset($user['password']);
+        }
+    
         response(empty($users) ? 'error' : 'success', empty($users) ? 'No users found.' : 'Users retrieved successfully', $users, 200);
     }
 
     public function getUserById($id) {
         $roles = $this->getRoles();
         $userIdFromJWT = $this->getUserId();
-
+    
         if (!in_array('Superadmin', $roles) && $userIdFromJWT != $id) {
             response('error', 'Unauthorized access.', null, 403);
             return;
         }
-
+    
         $query = "SELECT u.*, GROUP_CONCAT(r.role_name) as roles 
                   FROM " . $this->table_name . " u
                   LEFT JOIN user_roles ur ON u.user_id = ur.user_id
@@ -121,9 +126,14 @@ class UserController {
         $stmt->bindParam(':user_id', $id);
         $stmt->execute();
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
-
+    
+        // Remove the password field if user data exists
+        if ($user) {
+            unset($user['password']);
+        }
+    
         response($user ? 'success' : 'error', $user ? 'User found.' : 'User not found.', $user, $user ? 200 : 404);
-    }
+    }    
 
     public function searchUsers($query) {
         $sql = "SELECT username FROM user WHERE username LIKE :query LIMIT 50";
