@@ -35,7 +35,6 @@ switch ($request_method) {
             response('error', 'Unauthorized to access events.', null, 403); // User not authorized
             return; // Prevent further execution
         }
-        break;
 
     case 'POST':
         if ($event_id) {

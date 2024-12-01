@@ -1,6 +1,5 @@
 <?php
 require_once '../vendor/autoload.php'; // Include Composer's autoloader
-require_once '../config/JwtConfig.php'; // Include your JWT configuration
 require_once '../helpers/ResponseHelpers.php'; // Include your response helper functions
 require_once '../helpers/FileUploadHelper.php'; // Include file upload helper
 require_once '../helpers/JwtHelpers.php'; // Include the JWT helper
@@ -279,7 +278,8 @@ class EventController {
     // Get event by ID
     public function getEventById($eventId) {
         $this->jwtHelper->decodeJWT(); // Verify JWT
-
+    
+        // Query untuk mengambil data event dan invited_users
         $stmt = $this->db->prepare("
             SELECT 
                 e.event_id,
@@ -295,24 +295,34 @@ class EventController {
                 u.username AS propose_user,
                 c.category_name AS category,
                 s.status_name AS status,
-                e.note
+                e.note,
+                GROUP_CONCAT(u_inv.username ORDER BY u_inv.username ASC) AS invited_users
             FROM 
                 event e
             LEFT JOIN user u ON e.propose_user_id = u.user_id
             LEFT JOIN category c ON e.category_id = c.category_id
             LEFT JOIN status s ON e.status = s.status_id
+            LEFT JOIN invited i ON e.event_id = i.event_id
+            LEFT JOIN user u_inv ON i.user_id = u_inv.user_id
             WHERE e.event_id = ?
+            GROUP BY e.event_id
         ");
-
         $stmt->execute([$eventId]);
         $event = $stmt->fetch(PDO::FETCH_ASSOC);
-
+    
+        // Cek apakah event ditemukan
         if ($event) {
+            // Konversi invited_users menjadi array dari string
+            $event['invited_users'] = !empty($event['invited_users']) ? explode(',', $event['invited_users']) : [];
+    
+            // Mengirimkan respons sukses dengan data event dan invited_users
             response('success', 'Event retrieved successfully.', $event, 200);
         } else {
+            // Jika event tidak ditemukan
             response('error', 'Event not found.', null, 404);
         }
     }
+    
 
     // Create a new event
     public function createEvent() {
@@ -356,27 +366,20 @@ class EventController {
         if ($stmt->execute([$title, $description, $poster, $location, $place, $quota, $dateStart, $dateEnd, $schedule, $proposeUserId, $categoryId, $dateAdd, $status])) {
             $eventId = $this->db->lastInsertId();
     
-            // Tangani invited_users
-            if (isset($_POST['invited_users']) && is_array($_POST['invited_users'])) {
-                $usernames = $_POST['invited_users']; // Array of usernames
-                $invitedUserIds = $this->getUserIdsByUsername($usernames); // Convert to user_id
-                
+            if (isset($_POST['invited_users']) && !empty(trim($_POST['invited_users']))) {
+                $usernames = array_filter(array_map('trim', explode(',', $_POST['invited_users'])));
+                $invitedUserIds = $this->getUserIdsByUsername($usernames);
+    
                 foreach ($invitedUserIds as $userId) {
                     $inviteStmt = $this->db->prepare("INSERT INTO invited (event_id, user_id) VALUES (?, ?)");
                     $inviteStmt->execute([$eventId, $userId]);
                 }
             }
     
-            // Fetch the event with the invited users for the response
+            // Fetch event data
             $eventStmt = $this->db->prepare("SELECT * FROM event WHERE event_id = ?");
             $eventStmt->execute([$eventId]);
-            $event = $eventStmt->fetch(PDO::FETCH_ASSOC);
-    
-            // Fetch invited users
-            $invitedStmt = $this->db->prepare("SELECT user_id FROM invited WHERE event_id = ?");
-            $invitedStmt->execute([$eventId]);
-            $invitedUsers = $invitedStmt->fetchAll(PDO::FETCH_ASSOC);
-            $invitedUserIds = array_column($invitedUsers, 'user_id');
+            $event = $eventStmt->fetch(PDO::FETCH_ASSOC);       
             
             // Return success response with event data and invited users
             response('success', 'Event created successfully.', ['event' => $event, 'invited_users' => $invitedUserIds], 201);
@@ -421,34 +424,35 @@ class EventController {
         ");
         
         if ($stmt->execute([$title, $description, $location, $place, $quota, $dateStart, $dateEnd, $schedule, $categoryId, $eventId])) {
-            // Update invited_users
-            if (isset($_POST['invited_users']) && is_array($_POST['invited_users'])) {
-                $usernames = $_POST['invited_users']; // Array of usernames
-                $invitedUserIds = $this->getUserIdsByUsername($usernames); // Convert to user_id
-    
-                // Hapus existing invites
+            // Tangani invited_users
+            if (isset($_POST['invited_users']) && !empty($_POST['invited_users'])) {
+                // Pecah string menjadi array
+                $usernames = explode(',', $_POST['invited_users']); // "user1,user2" => ['user1', 'user2']
+                
+                // Konversi username ke user_id
+                $invitedUserIds = $this->getUserIdsByUsername($usernames);
+                
+                // Hapus undangan lama
                 $deleteStmt = $this->db->prepare("DELETE FROM invited WHERE event_id = ?");
                 $deleteStmt->execute([$eventId]);
-    
-                // Masukkan user baru
+                
+                // Tambahkan undangan baru
                 foreach ($invitedUserIds as $userId) {
                     $inviteStmt = $this->db->prepare("INSERT INTO invited (event_id, user_id) VALUES (?, ?)");
                     $inviteStmt->execute([$eventId, $userId]);
                 }
             }
-            
-            // Fetch the updated event details
+
+            // Ambil data event terbaru
             $updatedEventStmt = $this->db->prepare("SELECT * FROM event WHERE event_id = ?");
             $updatedEventStmt->execute([$eventId]);
             $updatedEvent = $updatedEventStmt->fetch(PDO::FETCH_ASSOC);
-    
-            // Fetch invited users
+
+            // Ambil daftar user yang diundang
             $invitedStmt = $this->db->prepare("SELECT user_id FROM invited WHERE event_id = ?");
             $invitedStmt->execute([$eventId]);
             $invitedUsers = $invitedStmt->fetchAll(PDO::FETCH_ASSOC);
             $invitedUserIds = array_column($invitedUsers, 'user_id');
-            var_dump($_POST['invited_users']);  // This will print the input array
-            var_dump($_POST['invited_users']);  // This will print the input array
 
             // Return success response with updated event data
             response('success', 'Event updated successfully.', ['event' => $updatedEvent, 'invited_users' => $invitedUserIds], 200);
@@ -478,7 +482,7 @@ class EventController {
     public function getUserIdsByUsername(array $usernames) {
         $placeholders = str_repeat('?,', count($usernames) - 1) . '?';
         $sql = "SELECT user_id FROM user WHERE username IN ($placeholders)";
-        $stmt = $this->conn->prepare($sql);
+        $stmt = $this->db->prepare($sql);
     
         if (!$stmt->execute($usernames)) {
             response('error', 'Failed to fetch user IDs.', null, 500);

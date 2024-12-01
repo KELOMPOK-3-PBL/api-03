@@ -136,6 +136,12 @@ class UserController {
     }    
 
     public function searchUsers($query) {
+        $roles = $this->getRoles();
+        if (empty($roles)) {
+            response('error', 'Unauthorized access.', null, 403);
+            return;
+        }
+
         $sql = "SELECT username FROM user WHERE username LIKE :query LIMIT 50";
     
         $stmt = $this->conn->prepare($sql);
