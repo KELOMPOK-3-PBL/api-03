@@ -10,6 +10,7 @@ class EventController {
 
     public function __construct($db) {
         $this->db = $db;
+        $this->uploadDir = realpath(__DIR__ . '/../../images') . '/';
         $this->jwtHelper = new JWTHelper(); // Instantiate JWTHelper
     }
 
@@ -429,8 +430,7 @@ class EventController {
         } else {
             response('error', 'Failed to create event.', null, 500);
         }
-    }    
-    
+    }       
     // Update an event by ID
     public function updateEvent($eventId) {
         $this->jwtHelper->decodeJWT(); // Verify JWT
@@ -458,52 +458,64 @@ class EventController {
             response('error', 'All fields are required and quota must be greater than 0.', null, 400);
             return;
         }
-        
-        // Update event ke database
+    
+        // Initialize FileUploadHelper
+        $fileUploadHelper = new FileUploadHelper($this->uploadDir); // Pass the upload directory
+    
+        // Handle file upload if provided
+        $poster = null;
+        if (isset($_FILES['poster']) && $_FILES['poster']['error'] === UPLOAD_ERR_OK) {
+            // Get the old poster from the database
+            $oldPoster = $this->getOldPoster($eventId);
+    
+            // If there is an old poster, delete it before uploading the new one
+            if ($oldPoster) {
+                $fileUploadHelper->deleteFile($oldPoster);
+            }
+            
+            // Upload the new poster
+            $poster = $fileUploadHelper->uploadFile($_FILES['poster'], 'poster', $oldPoster);
+        }
+    
+        // Proceed with the update
         $stmt = $this->db->prepare("
             UPDATE event
-            SET title = ?, description = ?, location = ?, place = ?, quota = ?, date_start = ?, date_end = ?, schedule = ?, category_id = ?
+            SET title = ?, description = ?, location = ?, place = ?, quota = ?, date_start = ?, date_end = ?, schedule = ?, category_id = ?, poster = ?
             WHERE event_id = ?
         ");
         
-        if ($stmt->execute([$title, $description, $location, $place, $quota, $dateStart, $dateEnd, $schedule, $categoryId, $eventId])) {
-            // Tangani invited_users
+        if ($stmt->execute([$title, $description, $location, $place, $quota, $dateStart, $dateEnd, $schedule, $categoryId, $poster ?? null, $eventId])) {
+            // Handle invited users
             if (isset($_POST['invited_users']) && !empty($_POST['invited_users'])) {
-                // Pecah string menjadi array
                 $usernames = explode(',', $_POST['invited_users']); // "user1,user2" => ['user1', 'user2']
-                
-                // Konversi username ke user_id
                 $invitedUserIds = $this->getUserIdsByUsername($usernames);
-                
-                // Hapus undangan lama
+    
+                // Remove old invitations
                 $deleteStmt = $this->db->prepare("DELETE FROM invited WHERE event_id = ?");
                 $deleteStmt->execute([$eventId]);
-                
-                // Tambahkan undangan baru
+    
+                // Add new invitations
                 foreach ($invitedUserIds as $userId) {
                     $inviteStmt = $this->db->prepare("INSERT INTO invited (event_id, user_id) VALUES (?, ?)");
                     $inviteStmt->execute([$eventId, $userId]);
                 }
             }
-
-            // Ambil data event terbaru
+    
+            // Fetch updated event and invited users
             $updatedEventStmt = $this->db->prepare("SELECT * FROM event WHERE event_id = ?");
             $updatedEventStmt->execute([$eventId]);
             $updatedEvent = $updatedEventStmt->fetch(PDO::FETCH_ASSOC);
-
-            // Ambil daftar user yang diundang
+    
             $invitedStmt = $this->db->prepare("SELECT user_id FROM invited WHERE event_id = ?");
             $invitedStmt->execute([$eventId]);
             $invitedUsers = $invitedStmt->fetchAll(PDO::FETCH_ASSOC);
             $invitedUserIds = array_column($invitedUsers, 'user_id');
-
-            // Return success response with updated event data
+    
             response('success', 'Event updated successfully.', ['event' => $updatedEvent, 'invited_users' => $invitedUserIds], 200);
         } else {
             response('error', 'Failed to update event.', null, 500);
         }
-    }
-          
+    }   
       
     // Delete an event by ID
     public function deleteEvent($eventId) {
@@ -533,5 +545,15 @@ class EventController {
         }
     
         return $stmt->fetchAll(PDO::FETCH_COLUMN);
+    }
+
+    // Define this method inside your EventController class
+    private function getOldPoster($eventId) {
+        $stmt = $this->db->prepare("SELECT poster FROM event WHERE event_id = ?");
+        $stmt->execute([$eventId]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // Return the poster filename if it exists
+        return $result ? $result['poster'] : null;
     }
 }
