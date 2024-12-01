@@ -121,7 +121,7 @@ class EventController {
         response('success', 'Approved events retrieved successfully.', $events, 200);
     }    
     
-    public function getProposeUserEvents($userId) {
+    public function getAllEventsProposeUser($userId) {
         // Retrieve filters and pagination from query parameters
         $category = isset($_GET['category']) ? $_GET['category'] : null;
         $dateFrom = isset($_GET['date_from']) ? $_GET['date_from'] : null;
@@ -138,14 +138,18 @@ class EventController {
                 e.event_id, e.title, e.date_add, u.username AS propose_user,
                 c.category_name AS category, e.description, e.poster, e.location,
                 e.place, e.quota, e.date_start, e.date_end, a.username AS admin_user,
-                s.status_name AS status, e.note
+                s.status_name AS status, e.note,
+                GROUP_CONCAT(u_inv.username ORDER BY u_inv.username ASC) AS invited_users
             FROM 
                 event e
             LEFT JOIN user u ON e.propose_user_id = u.user_id
             LEFT JOIN category c ON e.category_id = c.category_id
             LEFT JOIN user a ON e.admin_user_id = a.user_id
             LEFT JOIN status s ON e.status = s.status_id
-            WHERE e.propose_user_id = :userId";
+            LEFT JOIN invited i ON e.event_id = i.event_id
+            LEFT JOIN user u_inv ON i.user_id = u_inv.user_id
+            WHERE e.propose_user_id = :userId
+            GROUP BY e.event_id, e.title, e.date_add, u.username, c.category_name, e.description, e.poster, e.location, e.place, e.quota, e.date_start, e.date_end, a.username, s.status_name, e.note";
     
         // Initialize an array for parameters
         $params = [':userId' => $userId];
@@ -193,10 +197,15 @@ class EventController {
         $stmt->execute();
         $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
+        // Convert invited_users to array
+        foreach ($events as &$event) {
+            $event['invited_users'] = !empty($event['invited_users']) ? explode(',', $event['invited_users']) : [];
+        }
+    
         response('success', 'Events for Propose user retrieved successfully.', $events, 200);
     }
     
-    public function getAllProposedEventsForAdmin() {
+    public function getAllEventsAdminUser($adminUserId = null) {
         // Retrieve filters and pagination from query parameters
         $category = isset($_GET['category']) ? $_GET['category'] : null;
         $dateFrom = isset($_GET['date_from']) ? $_GET['date_from'] : null;
@@ -207,79 +216,110 @@ class EventController {
         $sortOrder = isset($_GET['sort_order']) ? $_GET['sort_order'] : 'DESC';
         $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : null;
         $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
-        $adminUserId = isset($_GET['admin_user_id']) ? (int)$_GET['admin_user_id'] : null;
-    
+        
+        // Start building the query
         $query = "
-            SELECT 
-                e.event_id, e.title, e.date_add, u.username AS propose_user,
-                c.category_name AS category, e.description, e.poster, e.location,
-                e.place, e.quota, e.date_start, e.date_end, a.username AS admin_user,
-                s.status_name AS status, e.note
-            FROM 
-                event e
-            LEFT JOIN user u ON e.propose_user_id = u.user_id
-            LEFT JOIN category c ON e.category_id = c.category_id
-            LEFT JOIN user a ON e.admin_user_id = a.user_id
-            LEFT JOIN status s ON e.status = s.status_id
-            WHERE 1=1"; // Base query for flexibility
+        SELECT
+            e.event_id, e.title, e.date_add, u.username AS propose_user,
+            c.category_name AS category, e.description, e.poster, e.location,
+            e.place, e.quota, e.date_start, e.date_end, a.username AS admin_user,
+            s.status_name AS status, e.note,
+            GROUP_CONCAT(u_inv.username ORDER BY u_inv.username ASC) AS invited_users
+        FROM 
+            event e
+        LEFT JOIN user u ON e.propose_user_id = u.user_id
+        LEFT JOIN category c ON e.category_id = c.category_id
+        LEFT JOIN user a ON e.admin_user_id = a.user_id
+        LEFT JOIN status s ON e.status = s.status_id
+        LEFT JOIN invited i ON e.event_id = i.event_id
+        LEFT JOIN user u_inv ON i.user_id = u_inv.user_id
+        WHERE 1=1
+        ";
         
         $params = [];
-    
-        if ($adminUserId) {
-            // Jika admin_user_id ada, hanya tampilkan event sesuai admin_user_id
-            $query .= " AND e.admin_user_id = :adminUserId";
-            $params[':adminUserId'] = $adminUserId;
+        
+        if ($adminUserId != null) {
+            $query .= " AND e.admin_user_id = :admin_user_id";
+            $params[':admin_user_id'] = $adminUserId;
         }
-    
+        
         if ($category) {
             $query .= " AND c.category_name = :category";
             $params[':category'] = $category;
         }
+        
         if ($dateFrom) {
             $query .= " AND e.date_start >= :dateFrom";
             $params[':dateFrom'] = $dateFrom;
         }
+        
         if ($dateTo) {
             $query .= " AND e.date_end <= :dateTo";
             $params[':dateTo'] = $dateTo;
         }
+        
         if ($searchTerm) {
             $query .= " AND (e.title LIKE :searchTerm OR e.description LIKE :searchTerm)";
             $params[':searchTerm'] = "%$searchTerm%";
         }
+        
         if ($status) {
             $query .= " AND s.status_name = :status";
             $params[':status'] = $status;
         }
-    
+        
+        // Include the necessary columns in the GROUP BY clause
+        $query .= " GROUP BY e.event_id, e.title, e.date_add, u.username, c.category_name, e.description, e.poster, 
+            e.location, e.place, e.quota, e.date_start, e.date_end, a.username, s.status_name, e.note";
+        
+        // Sorting
         $query .= " ORDER BY $sortBy $sortOrder";
-    
+        
+        // Pagination
         if ($limit !== null) {
             $query .= " LIMIT :limit OFFSET :offset";
         }
-    
+        
+        // Prepare and execute the query
         $stmt = $this->db->prepare($query);
-    
+        
+        // Bind the parameters
         foreach ($params as $key => $value) {
             $stmt->bindValue($key, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
         }
-    
+        
         if ($limit !== null) {
             $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
             $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         }
-    
+        
+        // Execute and fetch the events
         $stmt->execute();
         $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
+        
+        // Convert invited_users to array
+        foreach ($events as &$event) {
+            $event['invited_users'] = !empty($event['invited_users']) ? explode(',', $event['invited_users']) : [];
+        }
+        
         response('success', 'Events retrieved successfully.', $events, 200);
     }
-
+    
+    
     // Get event by ID
     public function getEventById($eventId) {
+        // Debugging: Show the event ID being processed
+        // var_dump("Fetching event with ID: ", $eventId);
+
         $this->jwtHelper->decodeJWT(); // Verify JWT
-    
-        // Query untuk mengambil data event dan invited_users
+
+        // Check if event_id is valid
+        if (!is_numeric($eventId)) {
+            response('error', 'Invalid event ID.', null, 400);
+            return;
+        }
+
+        // Query to retrieve event data
         $stmt = $this->db->prepare("
             SELECT 
                 e.event_id,
@@ -309,16 +349,19 @@ class EventController {
         ");
         $stmt->execute([$eventId]);
         $event = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-        // Cek apakah event ditemukan
+
+        // Debugging: Show the query result
+        // var_dump("Query Result: ", $event);
+
+        // Check if event is found
         if ($event) {
-            // Konversi invited_users menjadi array dari string
+            // Convert invited_users to an array
             $event['invited_users'] = !empty($event['invited_users']) ? explode(',', $event['invited_users']) : [];
-    
-            // Mengirimkan respons sukses dengan data event dan invited_users
+
+            // Send successful response
             response('success', 'Event retrieved successfully.', $event, 200);
         } else {
-            // Jika event tidak ditemukan
+            // If event not found
             response('error', 'Event not found.', null, 404);
         }
     }

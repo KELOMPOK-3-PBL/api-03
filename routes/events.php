@@ -10,43 +10,57 @@ $eventController = new EventController($db);
 
 // Handle HTTP methods
 $request_method = $_SERVER["REQUEST_METHOD"];
+
+// Ambil URI dari request
+// Get the path and parse the event_id from it
+
 $event_id = isset($_GET['event_id']) ? $_GET['event_id'] : null;
+// Debugging: Show the event_id being received
+
 
 // Initialize user roles (if needed for other methods)
 $jwtHelper = new JWTHelper();
 $user_roles = [];
 
 // Only retrieve roles for methods that require authentication
-if (in_array($request_method, ['GET','POST', 'DELETE'])) {
+if (in_array($request_method, ['GET', 'POST', 'DELETE'])) {
     $user_roles = $jwtHelper->getRoles(); // Retrieve user roles from the token
 }
+
 switch ($request_method) {
     case 'GET':
-        if (in_array('Admin', $user_roles) || in_array('Superadmin', $user_roles)) {
-            // Admin user can get all proposed events (regardless of status)
-            $eventController->getAllProposedEventsForAdmin();
-            return; // Prevent further execution
-        } elseif (in_array('Propose', $user_roles)) { // Corrected from else to elseif
-            // Propose user can get their own proposed events (regardless of status)
-            $user_id = $jwtHelper->getUserId(); // Get the user ID from JWT
-            $eventController->getProposeUserEvents($user_id);
-            return; // Prevent further execution
+        if ($event_id) {
+            // If event ID is in URL, call getEventById
+            $eventController->getEventById($event_id);
+        } elseif (in_array('Admin', $user_roles) || in_array('Superadmin', $user_roles)) {
+            // Admin or Superadmin can get events based on admin_user_id or all events
+            $adminUserId = isset($_GET['admin_user_id']) ? (int)$_GET['admin_user_id'] : null;
+            if ($adminUserId) {
+                $eventController->getAllEventsAdminUser($adminUserId);  // Pass adminUserId to filter events
+            } else {
+                $eventController->getAllEventsAdminUser();  // Get all events if no admin_user_id is provided
+            }
+        } elseif (in_array('Propose', $user_roles)) {
+            // Propose user can get their own proposed events
+            $user_id = $jwtHelper->getUserId();  // Get user ID from JWT
+            $eventController->getAllEventsProposeUser($user_id);  // Filter events by Propose user
         } else {
-            response('error', 'Unauthorized to access events.', null, 403); // User not authorized
-            return; // Prevent further execution
+            response('error', 'Unauthorized to access events.', null, 403);
         }
+        break;
+    
 
     case 'POST':
         if ($event_id) {
             // Update event if an event_id is provided and the user has the appropriate role
-            if (in_array('Admin', $user_roles) || in_array('Propose', $user_roles)) { // Check for roles
+            if (in_array('Admin', $user_roles) || in_array('Propose', $user_roles)) {
                 $eventController->updateEvent($event_id);
             } else {
                 response('error', 'Unauthorized to update events.', null, 403); // User not authorized
             }
         } else {
             // No event_id provided, so create a new event
-            if (in_array('Propose', $user_roles)) { // Check if user has 'Propose' role
+            if (in_array('Propose', $user_roles)) {
                 $eventController->createEvent(); // Call createEvent method
             } else {
                 response('error', 'Unauthorized to create events.', null, 403); // User not authorized
@@ -56,7 +70,7 @@ switch ($request_method) {
 
     case 'DELETE':
         if ($event_id) {
-            if (in_array('Admin', $user_roles)) { // Check if user has the 'admin' role
+            if (in_array('Admin', $user_roles)) {
                 $eventController->deleteEvent($event_id);
             } else {
                 response('error', 'Unauthorized to delete events.', null, 403); // User not authorized

@@ -13,9 +13,12 @@ $request_method = $_SERVER["REQUEST_METHOD"];
 $jwtHelper = new JWTHelper();
 $event_id = isset($_GET['event_id']) ? $_GET['event_id'] : null;
 
+// Debugging: Show the event_id being received
+// var_dump("Event ID received: ", $event_id);
+
 switch ($request_method) {
     case 'GET':
-        if ($event_id) {
+        if (!empty($event_id)) {
             $eventController->getEventById($event_id);
         } else {
             $eventController->getAllEvents();
