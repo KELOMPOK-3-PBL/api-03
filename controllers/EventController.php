@@ -8,6 +8,8 @@ class EventController {
     private $db;
     private $jwtHelper;
 
+    private $uploadDir;
+
     public function __construct($db) {
         $this->db = $db;
         $this->uploadDir = realpath(__DIR__ . '/../../images') . '/';
@@ -65,16 +67,20 @@ class EventController {
             SELECT 
                 e.event_id, e.title, e.date_add, u.username AS propose_user,
                 c.category_name AS category, e.description, e.poster, e.location,
-                e.place, e.quota, e.date_start, e.date_end, a.username AS admin_user,
-                s.status_name AS status, e.note
+                e.place, e.quota, e.date_start, e.date_end, e.schedule, e.updated, a.username AS admin_user,
+                s.status_name AS status, e.note,
+                GROUP_CONCAT(u_inv.username ORDER BY u_inv.username ASC) AS invited_users,
+                GROUP_CONCAT(u_inv.avatar ORDER BY u_inv.username ASC) AS invited_avatars
             FROM 
                 event e
             LEFT JOIN user u ON e.propose_user_id = u.user_id
             LEFT JOIN category c ON e.category_id = c.category_id
             LEFT JOIN user a ON e.admin_user_id = a.user_id
             LEFT JOIN status s ON e.status = s.status_id
+            LEFT JOIN invited i ON e.event_id = i.event_id
+            LEFT JOIN user u_inv ON i.user_id = u_inv.user_id
             WHERE s.status_name = 'approved'";
-        
+    
         $params = [];
     
         if ($category) {
@@ -98,6 +104,9 @@ class EventController {
             $params[':status'] = $status;
         }
     
+        $query .= " GROUP BY 
+                e.event_id, e.title, e.date_add, e.updated, u.username, c.category_name, e.description, e.poster, e.location, e.place, e.quota, e.date_start, e.date_end, e.schedule, e.updated, a.username, s.status_name, e.note";
+    
         $query .= " ORDER BY $sortBy $sortOrder";
     
         // Add pagination only if limit is provided
@@ -119,8 +128,21 @@ class EventController {
         $stmt->execute();
         $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
+        // Convert invited_users and invited_avatars to arrays
+        foreach ($events as &$event) {
+            if (!empty($event['invited_users'])) {
+                $usernames = explode(',', $event['invited_users']);
+                $avatars = explode(',', $event['invited_avatars']);
+                $event['invited_users'] = array_map(function ($username, $avatar) {
+                    return ['username' => $username, 'avatar' => $avatar];
+                }, $usernames, $avatars);
+            } else {
+                $event['invited_users'] = [];
+            }
+        }
+    
         response('success', 'Approved events retrieved successfully.', $events, 200);
-    }    
+    } 
     
     public function getAllEventsProposeUser($userId) {
         // Retrieve filters and pagination from query parameters
@@ -134,13 +156,15 @@ class EventController {
         $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : null;
         $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
     
+        // Start building the query
         $query = "
             SELECT 
                 e.event_id, e.title, e.date_add, u.username AS propose_user,
                 c.category_name AS category, e.description, e.poster, e.location,
-                e.place, e.quota, e.date_start, e.date_end, a.username AS admin_user,
+                e.place, e.quota, e.date_start, e.date_end, e.schedule, e.updated, a.username AS admin_user,
                 s.status_name AS status, e.note,
-                GROUP_CONCAT(u_inv.username ORDER BY u_inv.username ASC) AS invited_users
+                GROUP_CONCAT(u_inv.username ORDER BY u_inv.username ASC) AS invited_users,
+                GROUP_CONCAT(u_inv.avatar ORDER BY u_inv.username ASC) AS invited_user_avatars
             FROM 
                 event e
             LEFT JOIN user u ON e.propose_user_id = u.user_id
@@ -149,12 +173,12 @@ class EventController {
             LEFT JOIN status s ON e.status = s.status_id
             LEFT JOIN invited i ON e.event_id = i.event_id
             LEFT JOIN user u_inv ON i.user_id = u_inv.user_id
-            WHERE e.propose_user_id = :userId
-            GROUP BY e.event_id, e.title, e.date_add, u.username, c.category_name, e.description, e.poster, e.location, e.place, e.quota, e.date_start, e.date_end, a.username, s.status_name, e.note";
+            WHERE e.propose_user_id = :userId";
     
         // Initialize an array for parameters
         $params = [':userId' => $userId];
     
+        // Apply filters if set
         if ($category) {
             $query .= " AND c.category_name = :category";
             $params[':category'] = $category;
@@ -176,9 +200,15 @@ class EventController {
             $params[':status'] = $status;
         }
     
+        // Include the necessary columns in the GROUP BY clause
+        $query .= " GROUP BY e.event_id, e.title, e.date_add, e.schedule, e.updated, u.username, c.category_name, 
+                    e.description, e.poster, e.location, e.place, e.quota, e.date_start, e.date_end, a.username, 
+                    s.status_name, e.note";
+    
+        // Sorting
         $query .= " ORDER BY $sortBy $sortOrder";
     
-        // Add LIMIT and OFFSET only if limit is specified
+        // Pagination
         if ($limit !== null) {
             $query .= " LIMIT :limit OFFSET :offset";
         }
@@ -186,6 +216,7 @@ class EventController {
         // Prepare and execute the statement
         $stmt = $this->db->prepare($query);
     
+        // Bind the parameters
         foreach ($params as $key => $value) {
             $stmt->bindValue($key, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
         }
@@ -195,12 +226,15 @@ class EventController {
             $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         }
     
+        // Execute and fetch the events
         $stmt->execute();
         $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-        // Convert invited_users to array
+        // Convert invited_users to array and include their avatars
         foreach ($events as &$event) {
             $event['invited_users'] = !empty($event['invited_users']) ? explode(',', $event['invited_users']) : [];
+            // Convert invited_user_avatars into an array and map to the users
+            $event['invited_user_avatars'] = !empty($event['invited_user_avatars']) ? explode(',', $event['invited_user_avatars']) : [];
         }
     
         response('success', 'Events for Propose user retrieved successfully.', $events, 200);
@@ -225,7 +259,8 @@ class EventController {
             c.category_name AS category, e.description, e.poster, e.location,
             e.place, e.quota, e.date_start, e.date_end, a.username AS admin_user,
             s.status_name AS status, e.note,
-            GROUP_CONCAT(u_inv.username ORDER BY u_inv.username ASC) AS invited_users
+            GROUP_CONCAT(u_inv.username ORDER BY u_inv.username ASC) AS invited_users,
+            GROUP_CONCAT(u_inv.avatar ORDER BY u_inv.username ASC) AS invited_user_avatars
         FROM 
             event e
         LEFT JOIN user u ON e.propose_user_id = u.user_id
@@ -298,28 +333,26 @@ class EventController {
         $stmt->execute();
         $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // Convert invited_users to array
+        // Convert invited_users and invited_user_avatars to arrays
         foreach ($events as &$event) {
             $event['invited_users'] = !empty($event['invited_users']) ? explode(',', $event['invited_users']) : [];
+            $event['invited_user_avatars'] = !empty($event['invited_user_avatars']) ? explode(',', $event['invited_user_avatars']) : [];
         }
         
         response('success', 'Events retrieved successfully.', $events, 200);
     }
-    
-    
+     
     // Get event by ID
     public function getEventById($eventId) {
-        // Debugging: Show the event ID being processed
-        // var_dump("Fetching event with ID: ", $eventId);
-
-        $this->jwtHelper->decodeJWT(); // Verify JWT
-
+        // Verify JWT
+        $this->jwtHelper->decodeJWT(); 
+    
         // Check if event_id is valid
         if (!is_numeric($eventId)) {
             response('error', 'Invalid event ID.', null, 400);
             return;
         }
-
+    
         // Query to retrieve event data
         $stmt = $this->db->prepare("
             SELECT 
@@ -333,11 +366,13 @@ class EventController {
                 e.date_start,
                 e.date_end,
                 e.schedule,
+                e.updated,
                 u.username AS propose_user,
                 c.category_name AS category,
                 s.status_name AS status,
                 e.note,
-                GROUP_CONCAT(u_inv.username ORDER BY u_inv.username ASC) AS invited_users
+                GROUP_CONCAT(u_inv.username ORDER BY u_inv.username ASC) AS invited_users,
+                GROUP_CONCAT(u_inv.avatar ORDER BY u_inv.username ASC) AS invited_user_avatars
             FROM 
                 event e
             LEFT JOIN user u ON e.propose_user_id = u.user_id
@@ -348,17 +383,16 @@ class EventController {
             WHERE e.event_id = ?
             GROUP BY e.event_id
         ");
+        
         $stmt->execute([$eventId]);
         $event = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        // Debugging: Show the query result
-        // var_dump("Query Result: ", $event);
-
+    
         // Check if event is found
         if ($event) {
-            // Convert invited_users to an array
+            // Convert invited_users and invited_user_avatars to arrays
             $event['invited_users'] = !empty($event['invited_users']) ? explode(',', $event['invited_users']) : [];
-
+            $event['invited_user_avatars'] = !empty($event['invited_user_avatars']) ? explode(',', $event['invited_user_avatars']) : [];
+    
             // Send successful response
             response('success', 'Event retrieved successfully.', $event, 200);
         } else {
@@ -367,7 +401,6 @@ class EventController {
         }
     }
     
-
     // Create a new event
     public function createEvent() {
         $this->jwtHelper->decodeJWT(); // Verify JWT
@@ -385,7 +418,7 @@ class EventController {
         $quota = (int)($_POST['quota'] ?? 0);
         $dateStart = $_POST['date_start'] ?? '';
         $dateEnd = $_POST['date_end'] ?? '';
-        $schedule = $_POST['schedule'] ?? '';
+        $schedule = $_POST['schedule'] ?? null;
         $categoryId = $_POST['category_id'] ?? null;
         $proposeUserId = $this->getUserId();
         $dateAdd = date('Y-m-d H:i:s');
@@ -525,7 +558,31 @@ class EventController {
             response('error', 'Unauthorized.', null, 403);
             return;
         }
-
+    
+        // Retrieve the event to get the poster path
+        $stmt = $this->db->prepare("SELECT poster FROM event WHERE event_id = ?");
+        $stmt->execute([$eventId]);
+        $event = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+        if (!$event) {
+            response('error', 'Event not found.', null, 404);
+            return;
+        }
+    
+        $posterPath = $event['poster'] ?? null;
+    
+        // If there is a poster, delete the file using FileUploadHelper
+        if ($posterPath) {
+            $fileUploadHelper = new FileUploadHelper(); // You may pass any specific upload dir if needed
+            $deleteResult = $fileUploadHelper->deleteFile($posterPath);
+    
+            if ($deleteResult['status'] !== 'success') {
+                response('error', 'Failed to delete poster file.', null, 500);
+                return;
+            }
+        }
+    
+        // Now proceed to delete the event from the database
         $stmt = $this->db->prepare("DELETE FROM event WHERE event_id = ?");
         if ($stmt->execute([$eventId])) {
             response('success', 'Event deleted successfully.', null, 200);
