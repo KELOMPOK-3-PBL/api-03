@@ -11,7 +11,7 @@ use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 
 class UserController {
-    private $conn;
+    private $db;
     private $table_name = "user";
     private $jwtHelper;
 
@@ -24,7 +24,7 @@ class UserController {
     public $roles = [];
 
     public function __construct($db) {
-        $this->conn = $db;
+        $this->db = $db;
         $this->jwtHelper = new JWTHelper();
     }
 
@@ -81,7 +81,7 @@ class UserController {
             $query .= " LIMIT :limit OFFSET :offset";
         }
     
-        $stmt = $this->conn->prepare($query);
+        $stmt = $this->db->prepare($query);
     
         // Bind parameters
         if (!empty($search)) {
@@ -122,7 +122,7 @@ class UserController {
                   LEFT JOIN roles r ON ur.role_id = r.role_id
                   WHERE u.user_id = :user_id
                   GROUP BY u.user_id";
-        $stmt = $this->conn->prepare($query);
+        $stmt = $this->db->prepare($query);
         $stmt->bindParam(':user_id', $id);
         $stmt->execute();
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -144,7 +144,7 @@ class UserController {
 
         $sql = "SELECT username FROM user WHERE username LIKE :query LIMIT 50";
     
-        $stmt = $this->conn->prepare($sql);
+        $stmt = $this->db->prepare($sql);
         if (!$stmt) {
             response('error', 'Failed to prepare statement.', null, 500);
             return;
@@ -179,9 +179,16 @@ class UserController {
         $this->email = htmlspecialchars(strip_tags($_POST['email'] ?? ''));
         $this->password = htmlspecialchars(strip_tags($_POST['password'] ?? ''));
         $this->about = htmlspecialchars(strip_tags($_POST['about'] ?? ''));
-        
+    
         // Convert roles input (e.g., "1,3") to an array
         $rolesInput = $_POST['roles'] ?? '';
+        
+        // Check if roles are provided
+        if (empty($rolesInput)) {
+            response('error', 'Roles must be specified.', null, 400);
+            return;
+        }
+    
         $this->roles = array_map('intval', explode(',', $rolesInput)); // Convert roles to an array of integers
     
         if (isset($_FILES['avatar'])) {
@@ -190,16 +197,25 @@ class UserController {
         }
     
         if ($this->create()) {
-            response('success', 'User created successfully.', null, 201);
+            // Return success response with the created user data
+            $userData = [
+                'username' => $this->username,
+                'email' => $this->email,
+                'about' => $this->about,
+                'roles' => $this->roles,
+                'avatar' => $this->avatar ?? null, // Avatar URL or null if not set
+            ];
+            response('success', 'User created successfully.', $userData, 201);
         } else {
             response('error', 'User creation failed.', null, 400);
         }
     }
     
+    
     private function create() {
         $query = "INSERT INTO " . $this->table_name . " (username, email, password, about, avatar) 
                   VALUES(:username, :email, :password, :about, :avatar)";
-        $stmt = $this->conn->prepare($query);
+        $stmt = $this->db->prepare($query);
     
         $stmt->bindParam(":username", $this->username);
         $stmt->bindParam(":email", $this->email);
@@ -212,7 +228,7 @@ class UserController {
         $stmt->bindParam(":avatar", $this->avatar);  // Make sure $this->avatar is a variable
     
         if ($stmt->execute()) {
-            $this->user_id = $this->conn->lastInsertId();
+            $this->user_id = $this->db->lastInsertId();
             return $this->assignRoles();
         }
     
@@ -222,7 +238,7 @@ class UserController {
     private function assignRoles() {
         // First, delete any existing roles for this user
         $deleteQuery = "DELETE FROM user_roles WHERE user_id = :user_id";
-        $stmt = $this->conn->prepare($deleteQuery);
+        $stmt = $this->db->prepare($deleteQuery);
         $stmt->bindParam(":user_id", $this->user_id);
         $stmt->execute();
     
@@ -233,7 +249,7 @@ class UserController {
     
         // Assign new roles to the user
         $insertQuery = "INSERT INTO user_roles (user_id, role_id) VALUES (:user_id, :role_id)";
-        $stmt = $this->conn->prepare($insertQuery);
+        $stmt = $this->db->prepare($insertQuery);
     
         foreach ($this->roles as $roleId) {
             $stmt->bindParam(":user_id", $this->user_id);
@@ -260,7 +276,7 @@ class UserController {
     
         // Fetch the current user data from the database
         $currentUserData = $this->getUserDataById($id);
-        
+    
         if (!$currentUserData) {
             response('error', 'User not found.', null, 404);
             return;
@@ -271,6 +287,10 @@ class UserController {
         if (in_array('Superadmin', $roles)) {
             $this->username = htmlspecialchars(strip_tags($_POST['username'] ?? $currentUserData['username']));
             $this->email = htmlspecialchars(strip_tags($_POST['email'] ?? $currentUserData['email']));
+        } else {
+            // Non-Superadmin: Retain the existing username and only update allowed fields
+            $this->username = $currentUserData['username']; // Ensure username is not set to null
+            $this->email = $currentUserData['email'];
         }
     
         // Members can only update their password, about, and avatar
@@ -289,15 +309,28 @@ class UserController {
         $this->user_id = $id;  // Ensure user_id is set correctly
     
         // If avatar is provided, handle the upload
-        if (isset($_FILES['avatar'])) {
+        if (isset($_FILES['avatar']) && $_FILES['avatar']['error'] === UPLOAD_ERR_OK) {
             // Fetch the current avatar file path (you can fetch this from the database or existing user data)
             $oldAvatar = $currentUserData['avatar'] ?? null;
-            
-            // Upload the new avatar and delete the old one if provided
+    
+            // Initialize the FileUploadHelper
             $fileUploadHelper = new FileUploadHelper();
-            $this->avatar = $fileUploadHelper->uploadFile($_FILES['avatar'], 'avatar', $oldAvatar);
+            
+            // Upload the new avatar and delete the old one if necessary
+            try {
+                $this->avatar = $fileUploadHelper->uploadFile($_FILES['avatar'], 'avatar', $oldAvatar);
+                
+                // If there was an old avatar, delete it after the upload is successful
+                if ($oldAvatar) {
+                    $fileUploadHelper->deleteFile($oldAvatar);
+                }
+            } catch (Exception $e) {
+                response('error', 'Failed to upload avatar. ' . $e->getMessage(), null, 500);
+                return;
+            }
         } else {
-            $this->avatar = $currentUserData['avatar']; // If no new avatar is uploaded, retain the old one
+            // If no new avatar is uploaded, retain the old one
+            $this->avatar = $currentUserData['avatar'];
         }
     
         // If the update is successful
@@ -308,12 +341,18 @@ class UserController {
             } else {
                 // If roles were not updated or assignment was successful
                 $updatedUserData = $this->getUserDataById($id); // Fetch updated user data
+                
+                // Remove password from updated user data
+                unset($updatedUserData['password']);
+                
+                // Return success response with the updated user data (excluding the password)
                 response('success', 'User updated successfully.', $updatedUserData, 200);
             }
         } else {
             response('error', 'User update failed.', null, 400);
         }
     }
+    
        
     private function update($id) {
         // Start building the base query
@@ -333,7 +372,7 @@ class UserController {
         $query .= " WHERE user_id = :user_id";
         
         // Prepare the SQL statement
-        $stmt = $this->conn->prepare($query);
+        $stmt = $this->db->prepare($query);
         
         // Bind the parameters
         $stmt->bindParam(":username", $this->username);
@@ -359,7 +398,7 @@ class UserController {
     private function getUserDataById($id) {
         // Query to fetch the user data based on user_id
         $query = "SELECT * FROM " . $this->table_name . " WHERE user_id = :user_id";
-        $stmt = $this->conn->prepare($query);
+        $stmt = $this->db->prepare($query);
         $stmt->bindParam(":user_id", $id);
         $stmt->execute();
         
@@ -375,7 +414,7 @@ class UserController {
         }
 
         $query = "DELETE FROM " . $this->table_name . " WHERE user_id = :user_id";
-        $stmt = $this->conn->prepare($query);
+        $stmt = $this->db->prepare($query);
         $stmt->bindParam(":user_id", $id);
 
         if ($stmt->execute()) {
@@ -384,4 +423,13 @@ class UserController {
             response('error', 'User deletion failed.', null, 400);
         }
     }
+    // private function getOldAvatar($userId) {
+    //     $stmt = $this->db->prepare("SELECT avatar FROM users WHERE user_id = ?");
+    //     $stmt->execute([$userId]);
+    //     $result = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    //     // Return the avatar filename if it exists
+    //     return $result ? $result['avatar'] : null;
+    // }
+    
 }
