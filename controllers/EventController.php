@@ -130,17 +130,23 @@ class EventController {
     
         // Convert invited_users and invited_avatars to arrays
         foreach ($events as &$event) {
-            if (!empty($event['invited_users'])) {
-                $usernames = explode(',', $event['invited_users']);
-                $avatars = explode(',', $event['invited_avatars']);
-                $event['invited_users'] = array_map(function ($username, $avatar) {
-                    return ['username' => $username, 'avatar' => $avatar];
-                }, $usernames, $avatars);
-            } else {
-                $event['invited_users'] = [];
+            $usernames = !empty($event['invited_users']) ? explode(',', $event['invited_users']) : [];
+            $avatars = !empty($event['invited_avatars']) ? explode(',', $event['invited_avatars']) : [];
+            
+            // Map usernames and avatars only if both arrays are not empty
+            $event['invited_users'] = [];
+            foreach ($usernames as $index => $username) {
+                $avatar = isset($avatars[$index]) ? $avatars[$index] : null;
+                $event['invited_users'][] = [
+                    'username' => $username,
+                    'avatar' => $avatar
+                ];
             }
+        
+            // Unset invited_avatars after processing
+            unset($event['invited_avatars']);
         }
-    
+
         response('success', 'Approved events retrieved successfully.', $events, 200);
     } 
     
@@ -164,7 +170,7 @@ class EventController {
                 e.place, e.quota, e.date_start, e.date_end, e.schedule, e.updated, a.username AS admin_user,
                 s.status_name AS status, e.note,
                 GROUP_CONCAT(u_inv.username ORDER BY u_inv.username ASC) AS invited_users,
-                GROUP_CONCAT(u_inv.avatar ORDER BY u_inv.username ASC) AS invited_user_avatars
+                GROUP_CONCAT(u_inv.avatar ORDER BY u_inv.username ASC) AS invited_avatars
             FROM 
                 event e
             LEFT JOIN user u ON e.propose_user_id = u.user_id
@@ -232,10 +238,23 @@ class EventController {
     
         // Convert invited_users to array and include their avatars
         foreach ($events as &$event) {
-            $event['invited_users'] = !empty($event['invited_users']) ? explode(',', $event['invited_users']) : [];
-            // Convert invited_user_avatars into an array and map to the users
-            $event['invited_user_avatars'] = !empty($event['invited_user_avatars']) ? explode(',', $event['invited_user_avatars']) : [];
+            $usernames = !empty($event['invited_users']) ? explode(',', $event['invited_users']) : [];
+            $avatars = !empty($event['invited_avatars']) ? explode(',', $event['invited_avatars']) : [];
+            
+            // Map usernames and avatars
+            $event['invited_users'] = [];
+            foreach ($usernames as $index => $username) {
+                $avatar = isset($avatars[$index]) ? $avatars[$index] : null;
+                $event['invited_users'][] = [
+                    'username' => $username,
+                    'avatar' => $avatar
+                ];
+            }
+
+            // Unset the invited_avatars field
+            unset($event['invited_avatars']);
         }
+
     
         response('success', 'Events for Propose user retrieved successfully.', $events, 200);
     }
@@ -260,7 +279,7 @@ class EventController {
             e.place, e.quota, e.date_start, e.date_end, a.username AS admin_user,
             s.status_name AS status, e.note,
             GROUP_CONCAT(u_inv.username ORDER BY u_inv.username ASC) AS invited_users,
-            GROUP_CONCAT(u_inv.avatar ORDER BY u_inv.username ASC) AS invited_user_avatars
+            GROUP_CONCAT(u_inv.avatar ORDER BY u_inv.username ASC) AS invited_avatars
         FROM 
             event e
         LEFT JOIN user u ON e.propose_user_id = u.user_id
@@ -333,12 +352,25 @@ class EventController {
         $stmt->execute();
         $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // Convert invited_users and invited_user_avatars to arrays
+        // Convert invited_users to array and include their avatars
         foreach ($events as &$event) {
-            $event['invited_users'] = !empty($event['invited_users']) ? explode(',', $event['invited_users']) : [];
-            $event['invited_user_avatars'] = !empty($event['invited_user_avatars']) ? explode(',', $event['invited_user_avatars']) : [];
+            $usernames = !empty($event['invited_users']) ? explode(',', $event['invited_users']) : [];
+            $avatars = !empty($event['invited_avatars']) ? explode(',', $event['invited_avatars']) : [];
+            
+            // Map usernames and avatars
+            $event['invited_users'] = [];
+            foreach ($usernames as $index => $username) {
+                $avatar = isset($avatars[$index]) ? $avatars[$index] : null;
+                $event['invited_users'][] = [
+                    'username' => $username,
+                    'avatar' => $avatar
+                ];
+            }
+
+            // Unset the invited_avatars field
+            unset($event['invited_avatars']);
         }
-        
+       
         response('success', 'Events retrieved successfully.', $events, 200);
     }
      
@@ -390,15 +422,25 @@ class EventController {
         // Check if event is found
         if ($event) {
             // Convert invited_users and invited_user_avatars to arrays
-            $event['invited_users'] = !empty($event['invited_users']) ? explode(',', $event['invited_users']) : [];
-            $event['invited_user_avatars'] = !empty($event['invited_user_avatars']) ? explode(',', $event['invited_user_avatars']) : [];
+            $usernames = !empty($event['invited_users']) ? explode(',', $event['invited_users']) : [];
+            $avatars = !empty($event['invited_user_avatars']) ? explode(',', $event['invited_user_avatars']) : [];
+    
+            $event['invited_users'] = array_map(function ($username, $avatar) {
+                return [
+                    'username' => $username,
+                    'avatar' => !empty($avatar) ? $avatar : null // Explicitly set null for empty avatars
+                ];
+            }, $usernames, $avatars);
+    
+            // Remove invited_user_avatars from the response
+            unset($event['invited_user_avatars']);
     
             // Send successful response
             response('success', 'Event retrieved successfully.', $event, 200);
         } else {
             // If event not found
             response('error', 'Event not found.', null, 404);
-        }
+        }      
     }
     
     // Create a new event
