@@ -26,21 +26,25 @@ header("Access-Control-Allow-Credentials: true");
 
 switch ($request_method) {
     case 'POST':
-        // For login
-        $authController->login();
+        if (isset($_GET['action']) && $_GET['action'] === 'forgotPassword') {
+            $authController->forgotPassword();
+        } elseif (isset($_GET['action']) && $_GET['action'] === 'resetPassword') {
+            $authController->resetPassword();
+        } else {
+            $authController->login();
+        }
         break;
 
     case 'DELETE':
-        // For logout
         $authController->logout();
         break;
 
     default:
-        header("HTTP/1.0 405 Method Not Allowed"); // Method not allowed
+        header("HTTP/1.0 405 Method Not Allowed");
         echo json_encode([
             'status' => 'error',
             'message' => 'Method not allowed.'
         ], JSON_PRETTY_PRINT);
         break;
-}
+    }
 ?>

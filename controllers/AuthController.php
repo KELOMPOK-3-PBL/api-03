@@ -6,6 +6,7 @@ require_once '../helpers/ResponseHelpers.php';
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 
+
 class AuthController {
     private $db;
 
@@ -114,25 +115,71 @@ class AuthController {
     // Password recovery
     public function forgotPassword() {
         $data = json_decode(file_get_contents("php://input"), true);
-
+    
         $email = $data['email'] ?? '';
-
+    
         // Validate email
         if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             response('error', 'Invalid email format.', null, 400);
             return;
         }
-
+    
         // Check if email exists in the database
         $stmt = $this->db->prepare("SELECT * FROM user WHERE email = ?");
         $stmt->execute([$email]);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
-
+    
         if ($result) {
-            // Here you can implement sending a reset password email
-            response('success', 'Reset password link sent.', null, 200);
+            // Define a default password
+            $defaultPassword = 'polivent'; // Ensure it meets your security policy
+    
+            // Hash the default password
+            $hashedPassword = password_hash($defaultPassword, PASSWORD_DEFAULT);
+    
+            // Update the user's password in the database
+            $updateStmt = $this->db->prepare("UPDATE user SET password = ? WHERE email = ?");
+            if ($updateStmt->execute([$hashedPassword, $email])) {
+                response('success', 'Password has been reset to the default value.', null, 200);
+            } else {
+                response('error', 'Failed to reset the password.', null, 500);
+            }
         } else {
             response('error', 'Email not found.', null, 404);
+        }
+    }
+    
+
+    // Reset Password
+    public function resetPassword() {
+        $data = json_decode(file_get_contents("php://input"), true);
+        $token = $data['token'] ?? '';
+        $newPassword = $data['newPassword'] ?? '';
+
+        // Validate input
+        if (empty($token) || empty($newPassword)) {
+            response('error', 'Token and new password are required.', null, 400);
+            return;
+        }
+
+        // Check token validity
+        $stmt = $this->db->prepare("SELECT user_id FROM password_resets WHERE token = ? AND expires_at > NOW()");
+        $stmt->execute([$token]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($result) {
+            $userId = $result['user_id'];
+            $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+
+            // Update user's password
+            $this->db->prepare("UPDATE user SET password = ? WHERE user_id = ?")
+                ->execute([$hashedPassword, $userId]);
+
+            // Delete used token
+            $this->db->prepare("DELETE FROM password_resets WHERE token = ?")->execute([$token]);
+
+            response('success', 'Password reset successfully.', null, 200);
+        } else {
+            response('error', 'Invalid or expired token.', null, 400);
         }
     }
 
