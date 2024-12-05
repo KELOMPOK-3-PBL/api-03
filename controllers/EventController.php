@@ -65,7 +65,7 @@ class EventController {
     
         $query = "
             SELECT 
-                e.event_id, e.title, e.date_add, u.username AS propose_user,
+                e.event_id, e.title, e.date_add, u.username AS propose_user, u.avatar AS propose_user_avatar,
                 c.category_name AS category, e.description, e.poster, e.location,
                 e.place, e.quota, e.date_start, e.date_end, e.schedule, e.updated, a.username AS admin_user,
                 s.status_name AS status, e.note,
@@ -80,6 +80,7 @@ class EventController {
             LEFT JOIN invited i ON e.event_id = i.event_id
             LEFT JOIN user u_inv ON i.user_id = u_inv.user_id
             WHERE s.status_name = 'approved'";
+    
     
         $params = [];
     
@@ -133,7 +134,7 @@ class EventController {
             $usernames = !empty($event['invited_users']) ? explode(',', $event['invited_users']) : [];
             $avatars = !empty($event['invited_avatars']) ? explode(',', $event['invited_avatars']) : [];
             
-            // Map usernames and avatars only if both arrays are not empty
+            // Map usernames and avatars
             $event['invited_users'] = [];
             foreach ($usernames as $index => $username) {
                 $avatar = isset($avatars[$index]) ? $avatars[$index] : null;
@@ -143,9 +144,14 @@ class EventController {
                 ];
             }
         
-            // Unset invited_avatars after processing
+            // Handle propose_user_avatar and schedule
+            $event['propose_user_avatar'] = !empty($event['propose_user_avatar']) ? $event['propose_user_avatar'] : null;
+            $event['schedule'] = !empty($event['schedule']) ? $event['schedule'] : null;
+        
+            // Unset unused fields
             unset($event['invited_avatars']);
         }
+        
 
         response('success', 'Approved events retrieved successfully.', $events, 200);
     } 
@@ -163,9 +169,9 @@ class EventController {
         $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
     
         // Start building the query
-        $query = "
+            $query = "
             SELECT 
-                e.event_id, e.title, e.date_add, u.username AS propose_user,
+                e.event_id, e.title, e.date_add, u.username AS propose_user, u.avatar AS propose_user_avatar,
                 c.category_name AS category, e.description, e.poster, e.location,
                 e.place, e.quota, e.date_start, e.date_end, e.schedule, e.updated, a.username AS admin_user,
                 s.status_name AS status, e.note,
@@ -250,10 +256,15 @@ class EventController {
                     'avatar' => $avatar
                 ];
             }
-
-            // Unset the invited_avatars field
+        
+            // Handle propose_user_avatar and schedule
+            $event['propose_user_avatar'] = !empty($event['propose_user_avatar']) ? $event['propose_user_avatar'] : null;
+            $event['schedule'] = !empty($event['schedule']) ? $event['schedule'] : null;
+        
+            // Unset unused fields
             unset($event['invited_avatars']);
         }
+        
 
     
         response('success', 'Events for Propose user retrieved successfully.', $events, 200);
@@ -273,23 +284,22 @@ class EventController {
         
         // Start building the query
         $query = "
-        SELECT
-            e.event_id, e.title, e.date_add, u.username AS propose_user,
-            c.category_name AS category, e.description, e.poster, e.location,
-            e.place, e.quota, e.date_start, e.date_end, a.username AS admin_user,
-            s.status_name AS status, e.note,
-            GROUP_CONCAT(u_inv.username ORDER BY u_inv.username ASC) AS invited_users,
-            GROUP_CONCAT(u_inv.avatar ORDER BY u_inv.username ASC) AS invited_avatars
-        FROM 
-            event e
-        LEFT JOIN user u ON e.propose_user_id = u.user_id
-        LEFT JOIN category c ON e.category_id = c.category_id
-        LEFT JOIN user a ON e.admin_user_id = a.user_id
-        LEFT JOIN status s ON e.status = s.status_id
-        LEFT JOIN invited i ON e.event_id = i.event_id
-        LEFT JOIN user u_inv ON i.user_id = u_inv.user_id
-        WHERE 1=1
-        ";
+            SELECT 
+                e.event_id, e.title, e.date_add, u.username AS propose_user, u.avatar AS propose_user_avatar,
+                c.category_name AS category, e.description, e.poster, e.location,
+                e.place, e.quota, e.date_start, e.date_end, e.schedule, e.updated, a.username AS admin_user,
+                s.status_name AS status, e.note,
+                GROUP_CONCAT(u_inv.username ORDER BY u_inv.username ASC) AS invited_users,
+                GROUP_CONCAT(u_inv.avatar ORDER BY u_inv.username ASC) AS invited_avatars
+            FROM 
+                event e
+            LEFT JOIN user u ON e.propose_user_id = u.user_id
+            LEFT JOIN category c ON e.category_id = c.category_id
+            LEFT JOIN user a ON e.admin_user_id = a.user_id
+            LEFT JOIN status s ON e.status = s.status_id
+            LEFT JOIN invited i ON e.event_id = i.event_id
+            LEFT JOIN user u_inv ON i.user_id = u_inv.user_id
+            WHERE 1=1";
         
         $params = [];
         
@@ -366,10 +376,15 @@ class EventController {
                     'avatar' => $avatar
                 ];
             }
-
-            // Unset the invited_avatars field
+        
+            // Handle propose_user_avatar and schedule
+            $event['propose_user_avatar'] = !empty($event['propose_user_avatar']) ? $event['propose_user_avatar'] : null;
+            $event['schedule'] = !empty($event['schedule']) ? $event['schedule'] : null;
+        
+            // Unset unused fields
             unset($event['invited_avatars']);
         }
+        
        
         response('success', 'Events retrieved successfully.', $events, 200);
     }
@@ -388,27 +403,17 @@ class EventController {
         // Query to retrieve event data
         $stmt = $this->db->prepare("
             SELECT 
-                e.event_id,
-                e.title,
-                e.description,
-                e.poster,
-                e.location,
-                e.place,
-                e.quota,
-                e.date_start,
-                e.date_end,
-                e.schedule,
-                e.updated,
-                u.username AS propose_user,
-                c.category_name AS category,
-                s.status_name AS status,
-                e.note,
+                e.event_id, e.title, e.date_add, u.username AS propose_user, u.avatar AS propose_user_avatar,
+                c.category_name AS category, e.description, e.poster, e.location,
+                e.place, e.quota, e.date_start, e.date_end, e.schedule, e.updated, a.username AS admin_user,
+                s.status_name AS status, e.note,
                 GROUP_CONCAT(u_inv.username ORDER BY u_inv.username ASC) AS invited_users,
-                GROUP_CONCAT(u_inv.avatar ORDER BY u_inv.username ASC) AS invited_user_avatars
+                GROUP_CONCAT(u_inv.avatar ORDER BY u_inv.username ASC) AS invited_avatars
             FROM 
                 event e
             LEFT JOIN user u ON e.propose_user_id = u.user_id
             LEFT JOIN category c ON e.category_id = c.category_id
+            LEFT JOIN user a ON e.admin_user_id = a.user_id
             LEFT JOIN status s ON e.status = s.status_id
             LEFT JOIN invited i ON e.event_id = i.event_id
             LEFT JOIN user u_inv ON i.user_id = u_inv.user_id
