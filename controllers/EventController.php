@@ -12,7 +12,7 @@ class EventController {
 
     public function __construct($db) {
         $this->db = $db;
-        $this->uploadDir = realpath(__DIR__ . '/../../images') . '/';
+        $this->uploadDir = realpath(__DIR__ . '/../images') . '/';
         $this->jwtHelper = new JWTHelper(); // Instantiate JWTHelper
     }
 
