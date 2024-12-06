@@ -60,7 +60,6 @@ class FileUploadHelper {
     public function deleteFile($filePath) {
         $basePath = realpath(__DIR__ . '/../images');
         if ($basePath === false) {
-            var_dump('Base path not found.');
             return [
                 'status' => 'error',
                 'message' => 'Base path not found.'
@@ -70,41 +69,32 @@ class FileUploadHelper {
         // Sesuaikan path untuk direktori baru
         $normalizedPath = str_replace($this->publicDir, '', $filePath);
         $fullPath = $basePath . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $normalizedPath);
-        
-        var_dump('Normalized Path:', $normalizedPath);
-        var_dump('Full Path:', $fullPath);
     
         if (file_exists($fullPath)) {
-            var_dump('File exists:', true);
             if (is_writable($fullPath)) {
-                var_dump('File is writable:', true);
                 if (unlink($fullPath)) {
-                    var_dump('File deleted successfully:', $fullPath);
                     return [
                         'status' => 'success',
                         'message' => 'File deleted successfully.'
                     ];
                 } else {
-                    var_dump('Failed to delete the file:', $fullPath);
                     return [
                         'status' => 'error',
                         'message' => 'Failed to delete the file.'
                     ];
                 }
             } else {
-                var_dump('File is not writable:', $fullPath);
                 return [
                     'status' => 'error',
                     'message' => 'File is not writable.'
                 ];
             }
         } else {
-            var_dump('File does not exist:', $fullPath);
             return [
                 'status' => 'error',
                 'message' => 'File not found.'
             ];
         }
-    }    
+    }     
 }
 ?>
