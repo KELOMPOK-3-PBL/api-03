@@ -129,8 +129,8 @@ CREATE TABLE IF NOT EXISTS `status` (
 -- Dumping data for table testpbl.status: ~6 rows (approximately)
 INSERT INTO `status` (`status_id`, `status_name`) VALUES
 	(1, 'Proposed'),
-	(2, 'Reviewing'),
-	(3, 'Pending'),
+	(2, 'Review Admin'),
+	(3, 'Revision Propose'),
 	(4, 'Rejected'),
 	(5, 'Approved'),
 	(6, 'Completed');
@@ -144,9 +144,9 @@ CREATE TABLE IF NOT EXISTS `user` (
   `avatar` varchar(50) DEFAULT NULL,
   `about` text,
   PRIMARY KEY (`user_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=24 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=25 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Dumping data for table testpbl.user: ~14 rows (approximately)
+-- Dumping data for table testpbl.user: ~12 rows (approximately)
 INSERT INTO `user` (`user_id`, `username`, `email`, `password`, `avatar`, `about`) VALUES
 	(4, 'test1', 'test1@gmail.com', '$2y$10$963z9f2cVKJHQnV7wTBy8O8Au6H9MXmfMe56OOZa4fzT0.1qdMeC2', NULL, 'bio'),
 	(5, 'test2', 'member_propose@gmail.com', '$2y$10$fUPB425uMRfzkvid1E/XL.ep2SNuBFm1buuIgRY0qmnmJprpws81C', '/pbl/api-03/images/avatar/20241206_031749.jpg', 'testing sir'),
@@ -158,10 +158,11 @@ INSERT INTO `user` (`user_id`, `username`, `email`, `password`, `avatar`, `about
 	(16, 'sekedarcoba2', 'testdelete2@gmail.com', '$2y$10$xpd62Dojzx8yr87S3TlzE.n1ULg2ihZGjZ69o9lU1kkjlNY/2i5aC', '/pbl/api-03/images/avatar/20241110_042435.jpg', 'test'),
 	(17, 'sekedartest1', 'testdelete3@gmail.com', '$2y$10$oSp2qOedFwi9i9dboiwgo.qASUpVhZc6vU6/Vubmnfo8Xqw.521z2', '/pbl/api-03/images/avatar/20241110_044119.jpg', 'test'),
 	(18, 'sekedartest2', 'testdelete4@gmail.com', '$2y$10$zHhgPknUCBL0TeWdQY7N0.jGLi3F/YcEpzZma/PuUzyYZOOLNZ2bu', '/pbl/api-03/images/avatar/20241110_044255.jpg', 'test'),
-	(19, 'sekedartest2', 'xolisek219@jonespal.com', '$2y$10$DX7vaiWILIPKs0t58b3TcuC3U4IdKjZtNA9Ae.CpVs0S9YdHlpuge', '/pbl/api-03/images/avatar/20241110_044536.jpg', 'test'),
+	(19, 'sekedartest2', 'xolisek219@jonespal.com', '$2y$10$R2xLi73U1Tr7e2Rx5FRW3.tGyerbtI.rrIKLTT4ZwSnZDmIfXqZnC', '/pbl/api-03/images/avatar/20241110_044536.jpg', 'test'),
 	(21, 'test avatar', 'avatar@gmail.com', '$2y$10$bB2wA1Zdpb2Jqe7WoifSZOi5XgGcbnsGgxFvDxZNHp8kOB.XXxg2W', '/pbl/api-03/images/avatar/20241204_051430.jpg', 'avatar test'),
 	(22, 'another test avatar', 'avatar2@gmail.com', '$2y$10$nNXywtVSVlsL5TNDTgadTeAl3h2hTcq7GwlBZ9BdWFbMfTIo.Ht7a', '/pbl/api-03/images/avatar/20241204_051916.jpg', 'avatar test'),
-	(23, 'test avatar 2', 'avatar3@gmail.com', '$2y$10$f1A2F1GhBIoQRwuPb/PlE.23ZGKjegfLPkkFmTT6uOeA6apU.nCdK', '/pbl/images/avatar/20241204_054350.jpg', 'testing sir');
+	(23, 'test avatar 2', 'avatar3@gmail.com', '$2y$10$f1A2F1GhBIoQRwuPb/PlE.23ZGKjegfLPkkFmTT6uOeA6apU.nCdK', '/pbl/images/avatar/20241204_054350.jpg', 'testing sir'),
+	(24, 'agusd test', 'agusdtest@gmail.com', '$2y$10$B3hPAjKg5Ymrn8JZvh4Fzu0zuOQ.ppF4N6/eX/ghQW3f2sZYoBDiO', '/pbl/api-03/images/avatar/20241206_065142.jpg', 'avatar test');
 
 -- Dumping structure for table testpbl.user_roles
 CREATE TABLE IF NOT EXISTS `user_roles` (
@@ -174,7 +175,7 @@ CREATE TABLE IF NOT EXISTS `user_roles` (
   CONSTRAINT `user_roles_ibfk_2` FOREIGN KEY (`role_id`) REFERENCES `roles` (`role_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Dumping data for table testpbl.user_roles: ~20 rows (approximately)
+-- Dumping data for table testpbl.user_roles: ~19 rows (approximately)
 INSERT INTO `user_roles` (`user_id`, `role_id`) VALUES
 	(4, 1),
 	(4, 2),
@@ -195,7 +196,9 @@ INSERT INTO `user_roles` (`user_id`, `role_id`) VALUES
 	(22, 1),
 	(22, 2),
 	(23, 1),
-	(23, 2);
+	(23, 2),
+	(24, 1),
+	(24, 2);
 
 /*!40103 SET TIME_ZONE=IFNULL(@OLD_TIME_ZONE, 'system') */;
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;
