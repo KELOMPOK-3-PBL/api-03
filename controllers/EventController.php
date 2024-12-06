@@ -52,6 +52,14 @@ class EventController {
 
     // Get all events with optional filters
     public function getAllEvents() {
+        $updateQuery = "
+        UPDATE event
+        SET status = 6
+        WHERE date_end < NOW() AND status != 6
+        ";
+
+        $this->db->prepare($updateQuery)->execute();
+
         // Retrieve filters from query parameters
         $category = isset($_GET['category']) ? $_GET['category'] : null;
         $dateFrom = isset($_GET['date_from']) ? $_GET['date_from'] : null;
@@ -157,6 +165,14 @@ class EventController {
     } 
     
     public function getAllEventsProposeUser($userId) {
+        $updateQuery = "
+        UPDATE event
+        SET status = 6
+        WHERE date_end < NOW() AND status != 6
+        ";
+
+        $this->db->prepare($updateQuery)->execute();
+        
         // Retrieve filters and pagination from query parameters
         $category = isset($_GET['category']) ? $_GET['category'] : null;
         $dateFrom = isset($_GET['date_from']) ? $_GET['date_from'] : null;
@@ -271,6 +287,15 @@ class EventController {
     }
     
     public function getAllEventsAdminUser($adminUserId = null) {
+        $updateQuery = "
+        UPDATE event
+        SET status = 6
+        WHERE date_end < NOW() AND status != 6
+        ";
+
+        $this->db->prepare($updateQuery)->execute();
+        
+
         // Retrieve filters and pagination from query parameters
         $category = isset($_GET['category']) ? $_GET['category'] : null;
         $dateFrom = isset($_GET['date_from']) ? $_GET['date_from'] : null;
@@ -391,6 +416,14 @@ class EventController {
      
     // Get event by ID
     public function getEventById($eventId) {
+        $updateQuery = "
+        UPDATE event
+        SET status = 6
+        WHERE date_end < NOW() AND status != 6
+        ";
+
+        $this->db->prepare($updateQuery)->execute();
+
         // Verify JWT
         $this->jwtHelper->decodeJWT(); 
     
@@ -428,7 +461,7 @@ class EventController {
         if ($event) {
             // Convert invited_users and invited_user_avatars to arrays
             $usernames = !empty($event['invited_users']) ? explode(',', $event['invited_users']) : [];
-            $avatars = !empty($event['invited_user_avatars']) ? explode(',', $event['invited_user_avatars']) : [];
+            $avatars = !empty($event['invited_avatars']) ? explode(',', $event['invited_avatars']) : [];
     
             $event['invited_users'] = array_map(function ($username, $avatar) {
                 return [
@@ -437,8 +470,8 @@ class EventController {
                 ];
             }, $usernames, $avatars);
     
-            // Remove invited_user_avatars from the response
-            unset($event['invited_user_avatars']);
+            // Remove invited_avatars from the response
+            unset($event['invited_avatars']);
     
             // Send successful response
             response('success', 'Event retrieved successfully.', $event, 200);
