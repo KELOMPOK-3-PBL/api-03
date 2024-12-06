@@ -59,9 +59,9 @@ CREATE TABLE IF NOT EXISTS `event` (
   CONSTRAINT `event_ibfk_1` FOREIGN KEY (`propose_user_id`) REFERENCES `user` (`user_id`) ON DELETE CASCADE,
   CONSTRAINT `event_ibfk_2` FOREIGN KEY (`category_id`) REFERENCES `category` (`category_id`) ON DELETE CASCADE,
   CONSTRAINT `event_ibfk_3` FOREIGN KEY (`status`) REFERENCES `status` (`status_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=33 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=34 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Dumping data for table testpbl.event: ~14 rows (approximately)
+-- Dumping data for table testpbl.event: ~18 rows (approximately)
 INSERT INTO `event` (`event_id`, `propose_user_id`, `title`, `date_add`, `category_id`, `description`, `poster`, `location`, `place`, `quota`, `date_start`, `date_end`, `schedule`, `updated`, `admin_user_id`, `note`, `status`) VALUES
 	(1, 4, 'Workshop on Web Development', '2024-10-23 21:18:35', 1, 'A workshop to learn modern web development.', 'poster1.jpg', 'City Hall', 'Main Auditorium', 50, '2024-10-24 21:18:35', '2024-10-30 21:18:35', NULL, NULL, NULL, NULL, 4),
 	(2, 5, 'Annual Tech Conference', '2024-10-23 21:18:35', 3, ' This is a detailed description of the Tech Conference 2024.', '/pbl/images/poster/20241118_154126.jpg', ' kandok', ' Teknik Elektro', 100, '2024-12-10 09:00:00', '2024-12-12 17:00:00', NULL, NULL, NULL, NULL, 3),
@@ -79,7 +79,8 @@ INSERT INTO `event` (`event_id`, `propose_user_id`, `title`, `date_add`, `catego
 	(29, 5, 'another test', '2024-11-07 03:38:28', 3, ' This is a detailed description of the Tech Conference 2024.', '/pbl/images/poster/20241107_033907.jpg', ' kandok', ' Teknik Elektro', 100, '2024-12-10 09:00:00', '2024-12-12 17:00:00', '', NULL, 7, 'test', 2),
 	(30, 5, 'update invited_users', '2024-12-01 13:27:15', 3, ' This is a detailed description of the Tech Conference 2024.', '/pbl/images/poster/20241201_132715.jpg', ' kandok', ' Teknik Elektro', 100, '2024-12-10 09:00:00', '2024-12-12 17:00:00', '', NULL, 7, NULL, 1),
 	(31, 6, 'test-fileupload-update', '2024-12-01 15:26:33', 3, ' This is a detailed description of the Tech Conference 2024.', '/pbl/images/poster/20241201_183525.jpg', ' kandok', ' Teknik Elektro', 100, '2024-12-10 09:00:00', '2024-12-12 17:00:00', '', NULL, 7, NULL, 1),
-	(32, 5, 'test-fileupload-update', '2024-12-04 04:54:25', 3, ' This is a detailed description of the Tech Conference 2024.', '/pbl/images/poster/20241204_070730.jpg', ' kandok', ' Teknik Elektro', 100, '2024-12-10 09:00:00', '2024-12-12 17:00:00', '', NULL, 7, NULL, 5);
+	(32, 5, 'test-fileupload-update', '2024-12-04 04:54:25', 3, ' This is a detailed description of the Tech Conference 2024.', '/pbl/images/poster/20241204_070730.jpg', ' kandok', ' Teknik Elektro', 100, '2024-12-10 09:00:00', '2024-12-12 17:00:00', '', NULL, 7, NULL, 5),
+	(33, 5, 'test-fileupload-update', '2024-12-06 03:19:28', 3, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241206_032046.jpg', ' kandok', ' Teknik Elektro', 100, '2024-12-10 09:00:00', '2024-12-12 17:00:00', '', NULL, NULL, NULL, 1);
 
 -- Dumping structure for table testpbl.invited
 CREATE TABLE IF NOT EXISTS `invited` (
@@ -91,15 +92,18 @@ CREATE TABLE IF NOT EXISTS `invited` (
   CONSTRAINT `invited_ibfk_2` FOREIGN KEY (`event_id`) REFERENCES `event` (`event_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Dumping data for table testpbl.invited: ~7 rows (approximately)
+-- Dumping data for table testpbl.invited: ~10 rows (approximately)
 INSERT INTO `invited` (`event_id`, `user_id`) VALUES
 	(30, 13),
 	(31, 13),
 	(32, 13),
+	(33, 13),
 	(30, 17),
 	(31, 17),
 	(32, 17),
-	(32, 23);
+	(33, 17),
+	(32, 23),
+	(33, 23);
 
 -- Dumping structure for table testpbl.roles
 CREATE TABLE IF NOT EXISTS `roles` (
@@ -142,21 +146,21 @@ CREATE TABLE IF NOT EXISTS `user` (
   PRIMARY KEY (`user_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=24 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Dumping data for table testpbl.user: ~12 rows (approximately)
+-- Dumping data for table testpbl.user: ~14 rows (approximately)
 INSERT INTO `user` (`user_id`, `username`, `email`, `password`, `avatar`, `about`) VALUES
 	(4, 'test1', 'test1@gmail.com', '$2y$10$963z9f2cVKJHQnV7wTBy8O8Au6H9MXmfMe56OOZa4fzT0.1qdMeC2', NULL, 'bio'),
-	(5, 'test2', 'member_propose@gmail.com', '$2y$10$OVIs1pIl6yQzATfcMrskuu3iYw6GuEu./Wg9g5GutpvFQGiGNXvMe', '/pbl/images/avatar/20241205_070437.jpg', 'testing sir'),
+	(5, 'test2', 'member_propose@gmail.com', '$2y$10$fUPB425uMRfzkvid1E/XL.ep2SNuBFm1buuIgRY0qmnmJprpws81C', '/pbl/api-03/images/avatar/20241206_031749.jpg', 'testing sir'),
 	(6, 'test3', 'member_propose2@gmail.com', '$2y$10$iMXjjN1Gx/LX9dISKo4gIun/zMSfW2nKuy4oz7HOrAx667E/Sbs5.', NULL, 'bio'),
 	(7, 'test4', 'member_admin@gmail.com', '$2y$10$Fs.L0rw0ZgpJE9s0Y6zGHu8YDiF.8ftc2086nb2WB6fC3tj/BKRQi', NULL, 'bio'),
 	(10, 'test6', 'superadmin@gmail.com', '$2y$10$fgx.rgMkjihgZd1JsSFTVOPxptu5Esq6hcmeVfKkxl3VMbdif5Bcu', NULL, 'bio'),
 	(13, 'coba', 'testdelete@gmail.com', '$2y$10$LR8ovDSrr5g2AnpMq5IgSedFSDLzScjCUENBUvRS6d9K/U42IP1hS', NULL, 'testing'),
-	(15, 'sekedarcoba2', 'testingdelete@gmail.com', '$2y$10$29SsgubdwROojQPW.WB2QOdbRcKSDYygYBSSjIZTugApXmz.19.8W', '/pbl/images/avatar/20241110_125736.jpg', 'test'),
-	(16, 'sekedarcoba2', 'testdelete2@gmail.com', '$2y$10$xpd62Dojzx8yr87S3TlzE.n1ULg2ihZGjZ69o9lU1kkjlNY/2i5aC', '/pbl/images/avatar/20241110_042435.jpg', 'test'),
-	(17, 'sekedartest1', 'testdelete3@gmail.com', '$2y$10$oSp2qOedFwi9i9dboiwgo.qASUpVhZc6vU6/Vubmnfo8Xqw.521z2', '/pbl/images/avatar/20241110_044119.jpg', 'test'),
-	(18, 'sekedartest2', 'testdelete4@gmail.com', '$2y$10$zHhgPknUCBL0TeWdQY7N0.jGLi3F/YcEpzZma/PuUzyYZOOLNZ2bu', '/pbl/images/avatar/20241110_044255.jpg', 'test'),
-	(19, 'sekedartest2', 'xolisek219@jonespal.com', '$2y$10$DX7vaiWILIPKs0t58b3TcuC3U4IdKjZtNA9Ae.CpVs0S9YdHlpuge', '/pbl/images/avatar/20241110_044536.jpg', 'test'),
-	(21, 'test avatar', 'avatar@gmail.com', '$2y$10$bB2wA1Zdpb2Jqe7WoifSZOi5XgGcbnsGgxFvDxZNHp8kOB.XXxg2W', '/pbl/images/avatar/20241204_051430.jpg', 'avatar test'),
-	(22, 'another test avatar', 'avatar2@gmail.com', '$2y$10$nNXywtVSVlsL5TNDTgadTeAl3h2hTcq7GwlBZ9BdWFbMfTIo.Ht7a', '/pbl/images/avatar/20241204_051916.jpg', 'avatar test'),
+	(15, 'sekedarcoba2', 'testingdelete@gmail.com', '$2y$10$29SsgubdwROojQPW.WB2QOdbRcKSDYygYBSSjIZTugApXmz.19.8W', '/pbl/api-03/images/avatar/20241110_125736.jpg', 'test'),
+	(16, 'sekedarcoba2', 'testdelete2@gmail.com', '$2y$10$xpd62Dojzx8yr87S3TlzE.n1ULg2ihZGjZ69o9lU1kkjlNY/2i5aC', '/pbl/api-03/images/avatar/20241110_042435.jpg', 'test'),
+	(17, 'sekedartest1', 'testdelete3@gmail.com', '$2y$10$oSp2qOedFwi9i9dboiwgo.qASUpVhZc6vU6/Vubmnfo8Xqw.521z2', '/pbl/api-03/images/avatar/20241110_044119.jpg', 'test'),
+	(18, 'sekedartest2', 'testdelete4@gmail.com', '$2y$10$zHhgPknUCBL0TeWdQY7N0.jGLi3F/YcEpzZma/PuUzyYZOOLNZ2bu', '/pbl/api-03/images/avatar/20241110_044255.jpg', 'test'),
+	(19, 'sekedartest2', 'xolisek219@jonespal.com', '$2y$10$DX7vaiWILIPKs0t58b3TcuC3U4IdKjZtNA9Ae.CpVs0S9YdHlpuge', '/pbl/api-03/images/avatar/20241110_044536.jpg', 'test'),
+	(21, 'test avatar', 'avatar@gmail.com', '$2y$10$bB2wA1Zdpb2Jqe7WoifSZOi5XgGcbnsGgxFvDxZNHp8kOB.XXxg2W', '/pbl/api-03/images/avatar/20241204_051430.jpg', 'avatar test'),
+	(22, 'another test avatar', 'avatar2@gmail.com', '$2y$10$nNXywtVSVlsL5TNDTgadTeAl3h2hTcq7GwlBZ9BdWFbMfTIo.Ht7a', '/pbl/api-03/images/avatar/20241204_051916.jpg', 'avatar test'),
 	(23, 'test avatar 2', 'avatar3@gmail.com', '$2y$10$f1A2F1GhBIoQRwuPb/PlE.23ZGKjegfLPkkFmTT6uOeA6apU.nCdK', '/pbl/images/avatar/20241204_054350.jpg', 'testing sir');
 
 -- Dumping structure for table testpbl.user_roles
@@ -170,7 +174,7 @@ CREATE TABLE IF NOT EXISTS `user_roles` (
   CONSTRAINT `user_roles_ibfk_2` FOREIGN KEY (`role_id`) REFERENCES `roles` (`role_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Dumping data for table testpbl.user_roles: ~18 rows (approximately)
+-- Dumping data for table testpbl.user_roles: ~20 rows (approximately)
 INSERT INTO `user_roles` (`user_id`, `role_id`) VALUES
 	(4, 1),
 	(4, 2),
