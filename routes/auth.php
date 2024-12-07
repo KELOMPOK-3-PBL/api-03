@@ -25,6 +25,10 @@ header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Credentials: true");
 
 switch ($request_method) {
+    case 'GET':
+        $authController->checkLogin();
+        break;
+
     case 'POST':
         if (isset($_GET['action']) && $_GET['action'] === 'forgotPassword') {
             $authController->forgotPassword();

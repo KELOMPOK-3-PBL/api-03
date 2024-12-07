@@ -2,6 +2,7 @@
 require_once '../config/JwtConfig.php';
 require_once '../vendor/autoload.php'; 
 require_once '../helpers/ResponseHelpers.php';
+require_once '../helpers/JwtHelpers.php';
 
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
@@ -10,10 +11,16 @@ use Firebase\JWT\Key;
 class AuthController {
     private $db;
 
+    private $jwtHelper;
+
     public function __construct($db) {
         $this->db = $db;
+        $this->jwtHelper = new JWTHelper();
     }
 
+    private function getUserId() {
+        return $this->jwtHelper->getUserId();
+    }
     // Generate JWT
     private function generateJWT($userId, $roles) {
         $issuedAt = time();
@@ -112,6 +119,35 @@ class AuthController {
         response('success', 'Logout successful.', null, 200);
     }
 
+    public function checkLogin() {
+        // Inisialisasi JWTHelper 
+        $userId  = $this->getUserId();
+        try {
+            // Decode JWT untuk mendapatkan data pengguna
+            if (!$userId) {
+                response('error', 'User ID not found in token.', null, 401);
+                return;
+            }
+    
+            // Ambil data pengguna dari database berdasarkan user_id
+            $stmt = $this->db->prepare("SELECT * FROM user WHERE user_id = ?");
+            $stmt->execute([$userId]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            unset($user['password']); // Jangan kirimkan password ke pengguna
+    
+            // Jika pengguna ditemukan, kirimkan data pengguna
+            if ($user) {
+                response('success', 'User data fetched successfully.', $user, 200);
+            } else {
+                response('error', 'User not found.', null, 404);
+            }
+        } catch (Exception $e) {
+            // Tangani error dari JWTHelper
+            response('error', $e->getMessage(), null, $e->getCode() ?? 401);
+        }
+    }
+    
     // Password recovery
     public function forgotPassword() {
         $data = json_decode(file_get_contents("php://input"), true);
