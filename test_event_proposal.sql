@@ -63,9 +63,9 @@ CREATE TABLE IF NOT EXISTS `event` (
 
 -- Dumping data for table testpbl.event: ~18 rows (approximately)
 INSERT INTO `event` (`event_id`, `propose_user_id`, `title`, `date_add`, `category_id`, `description`, `poster`, `location`, `place`, `quota`, `date_start`, `date_end`, `schedule`, `updated`, `admin_user_id`, `note`, `status`) VALUES
-	(1, 4, 'Workshop on Web Development', '2024-10-23 21:18:35', 1, 'A workshop to learn modern web development.', 'poster1.jpg', 'City Hall', 'Main Auditorium', 50, '2024-10-24 21:18:35', '2024-10-30 21:18:35', NULL, NULL, NULL, NULL, 4),
+	(1, 4, 'Workshop on Web Development', '2024-10-23 21:18:35', 1, 'A workshop to learn modern web development.', 'poster1.jpg', 'City Hall', 'Main Auditorium', 50, '2024-10-24 21:18:35', '2024-10-30 21:18:35', NULL, NULL, NULL, NULL, 6),
 	(2, 5, 'Annual Tech Conference', '2024-10-23 21:18:35', 3, ' This is a detailed description of the Tech Conference 2024.', '/pbl/images/poster/20241118_154126.jpg', ' kandok', ' Teknik Elektro', 100, '2024-12-10 09:00:00', '2024-12-12 17:00:00', NULL, NULL, NULL, NULL, 3),
-	(3, 6, 'Monthly Webinar Series', '2024-10-23 21:18:35', 3, 'A series of webinars on various tech topics.', 'poster3.jpg', 'Online', 'Virtual Room', 100, '2024-10-26 21:18:35', '2024-11-23 21:18:35', NULL, NULL, NULL, NULL, 5),
+	(3, 6, 'Monthly Webinar Series', '2024-10-23 21:18:35', 3, 'A series of webinars on various tech topics.', 'poster3.jpg', 'Online', 'Virtual Room', 100, '2024-10-26 21:18:35', '2024-11-23 21:18:35', NULL, NULL, NULL, NULL, 6),
 	(18, 4, ' syk 2024', '2024-11-01 07:09:00', 3, ' This is a detailed description of the Tech Conference 2024.', '/pbl/images/poster/20241101_070900.jpg', ' kandok', ' Teknik Elektro', 200, '2024-12-10 09:00:00', '2024-12-12 17:00:00', NULL, NULL, NULL, NULL, 5),
 	(20, 5, 'test', '2024-11-01 07:24:53', 3, ' This is a detailed description of the Tech Conference 2024.', '/pbl/images/poster/20241101_072453.jpg', ' kandok', ' Teknik Elektro', 200, '2024-12-10 09:00:00', '2024-12-12 17:00:00', NULL, NULL, NULL, NULL, 6),
 	(21, 5, 'test', '2024-11-01 07:25:36', 3, ' This is a detailed description of the Tech Conference 2024.', '/pbl/images/poster/20241101_072536.jpg', ' kandok', ' Teknik Elektro', 200, '2024-12-10 09:00:00', '2024-12-12 17:00:00', NULL, NULL, NULL, NULL, 4),
