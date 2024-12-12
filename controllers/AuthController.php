@@ -130,23 +130,29 @@ class AuthController {
             }
     
             // Ambil data pengguna dari database berdasarkan user_id
-            $stmt = $this->db->prepare("SELECT * FROM user WHERE user_id = ?");
+            $stmt = $this->db->prepare("SELECT u.*, r.role_name FROM user u 
+                                         LEFT JOIN user_roles ur ON u.user_id = ur.user_id
+                                         LEFT JOIN roles r ON ur.role_id = r.role_id 
+                                         WHERE u.user_id = ?");
             $stmt->execute([$userId]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            unset($user['password']); // Jangan kirimkan password ke pengguna
     
-            // Jika pengguna ditemukan, kirimkan data pengguna
             if ($user) {
+                unset($user['password']); // Jangan kirimkan password ke pengguna
+                
+                // Jika pengguna ditemukan, kirimkan data pengguna beserta perannya
                 response('success', 'User data fetched successfully.', $user, 200);
             } else {
                 response('error', 'User not found.', null, 404);
             }
+        } catch (PDOException $e) {
+            // Tangani kesalahan SQL
+            response('error', $e->getMessage(), null, 500);
         } catch (Exception $e) {
-            // Tangani error dari JWTHelper
+            // Tangani error lainnya
             response('error', $e->getMessage(), null, $e->getCode() ?? 401);
         }
-    }
+    }    
     
     // Password recovery
     public function forgotPassword() {
