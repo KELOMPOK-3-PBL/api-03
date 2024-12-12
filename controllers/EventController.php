@@ -549,86 +549,106 @@ class EventController {
         $this->jwtHelper->decodeJWT(); // Verify JWT
         $roles = $this->getRoles(); // Get roles from JWT
         $userIdFromJWT = $this->getUserId();
-        
+    
         // Validasi role
         if (!in_array('Propose', $roles) && !in_array('Admin', $roles)) {
             response('error', 'Unauthorized.', null, 403);
             return;
         }
-        
-        // Validasi data
-        $title = $_POST['title'] ?? '';
-        $description = $_POST['description'] ?? '';
-        $location = $_POST['location'] ?? '';
-        $place = $_POST['place'] ?? '';
-        $quota = (int)($_POST['quota'] ?? 0);
-        $dateStart = $_POST['date_start'] ?? '';
-        $dateEnd = $_POST['date_end'] ?? '';
-        $schedule = $_POST['schedule'] ?? '';
-        $categoryId = $_POST['category_id'] ?? null;
-        
-        if (empty($title) || empty($description) || empty($dateStart) || empty($dateEnd) || $quota <= 0) {
-            response('error', 'All fields are required and quota must be greater than 0.', null, 400);
-            return;
-        }
     
-        // Initialize FileUploadHelper
-        $fileUploadHelper = new FileUploadHelper($this->uploadDir); // Pass the upload directory
-    
-        // Handle file upload if provided
-        $poster = null;
-        if (isset($_FILES['poster']) && $_FILES['poster']['error'] === UPLOAD_ERR_OK) {
-            // Get the old poster from the database
-            $oldPoster = $this->getOldPoster($eventId);
-    
-            // If there is an old poster, delete it before uploading the new one
-            if ($oldPoster) {
-                $fileUploadHelper->deleteFile($oldPoster);
+        // For 'Admin', only notes can be updated
+        if (in_array('Admin', $roles)) {
+            $note = $_POST['note'] ?? '';
+            if (empty($note)) {
+                response('error', 'note are required for admin.', null, 400);
+                return;
             }
-            
-            // Upload the new poster
-            $poster = $fileUploadHelper->uploadFile($_FILES['poster'], 'poster', $oldPoster);
-        }
     
-        // Proceed with the update
-        $stmt = $this->db->prepare("
-            UPDATE event
-            SET title = ?, description = ?, location = ?, place = ?, quota = ?, date_start = ?, date_end = ?, schedule = ?, category_id = ?, poster = ?
-            WHERE event_id = ?
-        ");
-        
-        if ($stmt->execute([$title, $description, $location, $place, $quota, $dateStart, $dateEnd, $schedule, $categoryId, $poster ?? null, $eventId])) {
-            // Handle invited users
-            if (isset($_POST['invited_users']) && !empty($_POST['invited_users'])) {
-                $usernames = explode(',', $_POST['invited_users']); // "user1,user2" => ['user1', 'user2']
-                $invitedUserIds = $this->getUserIdsByUsername($usernames);
+            // No file upload logic
+            $stmt = $this->db->prepare("
+                UPDATE event
+                SET note = ?, status = 2
+                WHERE event_id = ?
+            ");
     
-                // Remove old invitations
-                $deleteStmt = $this->db->prepare("DELETE FROM invited WHERE event_id = ?");
-                $deleteStmt->execute([$eventId]);
+            if ($stmt->execute([$note, $eventId])) {
+                $updatedEventStmt = $this->db->prepare("SELECT note FROM event WHERE event_id = ?");
+                $updatedEventStmt->execute([$eventId]);
+                $updatedEvent = $updatedEventStmt->fetch(PDO::FETCH_ASSOC);
     
-                // Add new invitations
-                foreach ($invitedUserIds as $userId) {
-                    $inviteStmt = $this->db->prepare("INSERT INTO invited (event_id, user_id) VALUES (?, ?)");
-                    $inviteStmt->execute([$eventId, $userId]);
+                response('success', 'Event note updated successfully.', ['event' => $updatedEvent], 200);
+            } else {
+                response('error', 'Failed to update event note.', null, 500);
+            }
+        } else if (in_array('Propose', $roles)) {
+            // Validate all fields except notes for 'Propose'
+            $title = $_POST['title'] ?? '';
+            $description = $_POST['description'] ?? '';
+            $location = $_POST['location'] ?? '';
+            $place = $_POST['place'] ?? '';
+            $quota = (int)($_POST['quota'] ?? 0);
+            $dateStart = $_POST['date_start'] ?? '';
+            $dateEnd = $_POST['date_end'] ?? '';
+            $schedule = $_POST['schedule'] ?? '';
+            $categoryId = $_POST['category_id'] ?? null;
+    
+            if (empty($title) || empty($description) || empty($dateStart) || empty($dateEnd) || $quota <= 0) {
+                response('error', 'All fields are required and quota must be greater than 0.', null, 400);
+                return;
+            }
+    
+            $fileUploadHelper = new FileUploadHelper($this->uploadDir);
+    
+            // Check if a new file has been uploaded
+            $poster = null;
+            if (isset($_FILES['poster']) && $_FILES['poster']['error'] === UPLOAD_ERR_OK) {
+                $oldPoster = $this->getOldPoster($eventId);
+                if ($oldPoster) {
+                    $fileUploadHelper->deleteFile($oldPoster);
                 }
+                $poster = $fileUploadHelper->uploadFile($_FILES['poster'], 'poster', $oldPoster);
             }
     
-            // Fetch updated event and invited users
-            $updatedEventStmt = $this->db->prepare("SELECT * FROM event WHERE event_id = ?");
-            $updatedEventStmt->execute([$eventId]);
-            $updatedEvent = $updatedEventStmt->fetch(PDO::FETCH_ASSOC);
+            // If no new file uploaded, maintain the old poster
+            if ($poster === null) {
+                $poster = $this->getOldPoster($eventId);
+            }
     
-            $invitedStmt = $this->db->prepare("SELECT user_id FROM invited WHERE event_id = ?");
-            $invitedStmt->execute([$eventId]);
-            $invitedUsers = $invitedStmt->fetchAll(PDO::FETCH_ASSOC);
-            $invitedUserIds = array_column($invitedUsers, 'user_id');
+            $stmt = $this->db->prepare("
+                UPDATE event
+                SET title = ?, description = ?, location = ?, place = ?, quota = ?, date_start = ?, date_end = ?, schedule = ?, category_id = ?, poster = ?, status = 3
+                WHERE event_id = ?
+            ");
     
-            response('success', 'Event updated successfully.', ['event' => $updatedEvent, 'invited_users' => $invitedUserIds], 200);
-        } else {
-            response('error', 'Failed to update event.', null, 500);
+            if ($stmt->execute([$title, $description, $location, $place, $quota, $dateStart, $dateEnd, $schedule, $categoryId, $poster, $eventId])) {
+                if (isset($_POST['invited_users']) && !empty($_POST['invited_users'])) {
+                    $usernames = explode(',', $_POST['invited_users']);
+                    $invitedUserIds = $this->getUserIdsByUsername($usernames);
+    
+                    $deleteStmt = $this->db->prepare("DELETE FROM invited WHERE event_id = ?");
+                    $deleteStmt->execute([$eventId]);
+    
+                    foreach ($invitedUserIds as $userId) {
+                        $inviteStmt = $this->db->prepare("INSERT INTO invited (event_id, user_id) VALUES (?, ?)");
+                        $inviteStmt->execute([$eventId, $userId]);
+                    }
+                }
+    
+                $updatedEventStmt = $this->db->prepare("SELECT * FROM event WHERE event_id = ?");
+                $updatedEventStmt->execute([$eventId]);
+                $updatedEvent = $updatedEventStmt->fetch(PDO::FETCH_ASSOC);
+    
+                $invitedStmt = $this->db->prepare("SELECT user_id FROM invited WHERE event_id = ?");
+                $invitedStmt->execute([$eventId]);
+                $invitedUsers = $invitedStmt->fetchAll(PDO::FETCH_ASSOC);
+                $invitedUserIds = array_column($invitedUsers, 'user_id');
+    
+                response('success', 'Event updated successfully.', ['event' => $updatedEvent, 'invited_users' => $invitedUserIds], 200);
+            } else {
+                response('error', 'Failed to update event.', null, 500);
+            }
         }
-    }   
+    }
       
     // Delete an event by ID
     public function deleteEvent($eventId) {
