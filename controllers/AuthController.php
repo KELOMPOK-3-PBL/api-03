@@ -7,7 +7,6 @@ require_once '../helpers/JwtHelpers.php';
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 
-
 class AuthController {
     private $db;
 
@@ -21,6 +20,7 @@ class AuthController {
     private function getUserId() {
         return $this->jwtHelper->getUserId();
     }
+
     // Generate JWT
     private function generateJWT($userId, $roles) {
         $issuedAt = time();
@@ -35,7 +35,31 @@ class AuthController {
         return JWT::encode($payload, JWT_SECRET, 'HS256');
     }
 
-    // Set JWT in cookie
+    private function generateRefreshToken($userId, $roles) {
+        $issuedAt = time();
+        $expirationTime = $issuedAt + JWT_REFRESH_EXPIRATION_TIME; // Set longer expiration time for refresh token
+        $payload = [
+            'user_id' => $userId,
+            'roles' => $roles,
+            'iat' => $issuedAt,
+            'exp' => $expirationTime,
+        ];
+        
+        return JWT::encode($payload, JWT_SECRET, 'HS256');
+    }
+
+    private function setRefreshTokenInCookie($refreshToken) {
+        $cookieParams = [
+            'expires' => time() + JWT_REFRESH_EXPIRATION_TIME, // Longer expiration time for refresh token
+            'path' => '/', 
+            'secure' => false, // Set to true if using HTTPS
+            'httponly' => true, // Prevent JavaScript access to the cookie
+            'samesite' => 'Strict',
+        ];
+        
+        setcookie('refresh_token', $refreshToken, $cookieParams);
+    }
+
     private function setJWTInCookie($jwt, $expiration = null) {
         // Set cookie parameters
         $cookieParams = [
@@ -93,17 +117,20 @@ class AuthController {
                 // Create JWT
                 $roles = explode(',', $result['roles'] ?? '');
                 $jwt = $this->generateJWT($result['user_id'], $roles);
+                $refreshToken = $this->generateRefreshToken($result['user_id'], $roles);
                 
-                // Set JWT in cookie with appropriate expiration
+                // Set JWT and refresh token in cookies
                 if ($rememberMe) {
                     // If remember me is checked, set a longer expiration time
                     $this->setJWTInCookie($jwt, JWT_EXPIRATION_TIME); // Use long expiration for "Remember Me"
+                    $this->setRefreshTokenInCookie($refreshToken);
                 } else {
                     // Otherwise, set a session cookie (no expiration time)
                     $this->setJWTInCookie($jwt); // Session cookie
+                    $this->setRefreshTokenInCookie($refreshToken);
                 }
 
-                response('success', 'Login successful.', ['token' => $jwt], 200);
+                response('success', 'Login successful.', ['token' => $jwt, 'refresh_token' => $refreshToken], 200);
             } else {
                 response('error', 'Incorrect email or password.', null, 401);
             }
@@ -116,6 +143,7 @@ class AuthController {
     public function logout() {
         // Clear the cookie
         setcookie('jwt', '', time() - 3600, '/');
+        setcookie('refresh_token', '', time() - 3600, '/');
         response('success', 'Logout successful.', null, 200);
     }
 
@@ -195,70 +223,40 @@ class AuthController {
     public function resetPassword() {
         $data = json_decode(file_get_contents("php://input"), true);
         $token = $data['token'] ?? '';
-        $newPassword = $data['newPassword'] ?? '';
-
-        // Validate input
-        if (empty($token) || empty($newPassword)) {
-            response('error', 'Token and new password are required.', null, 400);
+        $password = $data['password'] ?? '';
+    
+        // Validate token
+        if (empty($token)) {
+            response('error', 'Token is required.', null, 400);
             return;
         }
-
-        // Check token validity
-        $stmt = $this->db->prepare("SELECT user_id FROM password_resets WHERE token = ? AND expires_at > NOW()");
-        $stmt->execute([$token]);
+    
+        // Check if token exists in the database
+        $stmt = $this->db->prepare("SELECT * FROM password_resets WHERE token = ? AND expires_at > ?");
+        $stmt->execute([$token, date('Y-m-d H:i:s')]);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
-
+    
         if ($result) {
-            $userId = $result['user_id'];
-            $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
-
-            // Update user's password
-            $this->db->prepare("UPDATE user SET password = ? WHERE user_id = ?")
-                ->execute([$hashedPassword, $userId]);
-
-            // Delete used token
-            $this->db->prepare("DELETE FROM password_resets WHERE token = ?")->execute([$token]);
-
-            response('success', 'Password reset successfully.', null, 200);
+            // Validate password
+            if (empty($password) || strlen($password) < 8) {
+                response('error', 'Password must be at least 8 characters long.', null, 400);
+                return;
+            }
+    
+            // Hash the new password
+            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+    
+            // Update the password in the database
+            $stmt = $this->db->prepare("UPDATE user SET password = ? WHERE user_id = ?");
+            $stmt->execute([$hashedPassword, $result['user_id']]);
+    
+            // Remove the token from the database
+            $stmt = $this->db->prepare("DELETE FROM password_resets WHERE token = ?");
+            $stmt->execute([$token]);
+    
+            response('success', 'Password has been reset successfully.', null, 200);
         } else {
             response('error', 'Invalid or expired token.', null, 400);
-        }
-    }
-
-    // Change user password
-    public function changePassword($userId) {
-        $data = json_decode(file_get_contents("php://input"), true);
-
-        $oldPassword = $data['oldPassword'] ?? '';
-        $newPassword = $data['newPassword'] ?? '';
-
-        // Validate input
-        if (empty($oldPassword) || empty($newPassword)) {
-            response('error', 'Both old and new passwords are required.', null, 400);
-            return;
-        }
-
-        // Check if user exists
-        $stmt = $this->db->prepare("SELECT * FROM user WHERE user_id = ?");
-        $stmt->execute([$userId]);
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if ($result) {
-            // Verify old password
-            if (password_verify($oldPassword, $result['password'])) {
-                // Update with new password
-                $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
-                $updateStmt = $this->db->prepare("UPDATE user SET password = ? WHERE user_id = ?");
-                if ($updateStmt->execute([$hashedPassword, $userId])) {
-                    response('success', 'Password changed successfully.', null, 200);
-                } else {
-                    response('error', 'Password change failed.', null, 500);
-                }
-            } else {
-                response('error', 'Old password is incorrect.', null, 401);
-            }
-        } else {
-            response('error', 'User not found.', null, 404);
         }
     }
 }
