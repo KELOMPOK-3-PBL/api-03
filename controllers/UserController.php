@@ -35,32 +35,31 @@ class UserController {
     private function getUserId() {
         return $this->jwtHelper->getUserId();
     }
-
+    
     public function getAllUsers() {
         $roles = $this->getRoles();
-    
+
         if (!in_array('Superadmin', $roles)) {
             response('error', 'Only superadmin can access this resource.', null, 403);
             return;
         }
-    
+
         // Parameters for searching, sorting, and filtering
         $search = isset($_GET['search']) ? htmlspecialchars(strip_tags($_GET['search'])) : '';
         $sort = isset($_GET['sort']) ? htmlspecialchars(strip_tags($_GET['sort'])) : 'username';
         $order = isset($_GET['order']) && strtolower($_GET['order']) === 'desc' ? 'DESC' : 'ASC';
         $roleFilter = isset($_GET['role']) ? htmlspecialchars(strip_tags($_GET['role'])) : '';
-    
+
         // Pagination
         $limit = isset($_GET['limit']) && is_numeric($_GET['limit']) ? (int)$_GET['limit'] : null; // No default limit
-        $page = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] : 1;
-        $offset = $limit ? ($page - 1) * $limit : 0; // Calculate offset only if limit is set
-    
+        $offset = isset($_GET['offset']) && is_numeric($_GET['offset']) ? (int)$_GET['offset'] : 0;
+
         // Base query
         $query = "SELECT u.*, GROUP_CONCAT(r.role_name) as roles 
-                  FROM " . $this->table_name . " u
-                  LEFT JOIN user_roles ur ON u.user_id = ur.user_id
-                  LEFT JOIN roles r ON ur.role_id = r.role_id";
-    
+                FROM " . $this->table_name . " u
+                LEFT JOIN user_roles ur ON u.user_id = ur.user_id
+                LEFT JOIN roles r ON ur.role_id = r.role_id";
+
         // Filtering conditions
         $conditions = [];
         if (!empty($search)) {
@@ -72,17 +71,17 @@ class UserController {
         if ($conditions) {
             $query .= " WHERE " . implode(" AND ", $conditions);
         }
-    
+
         // Grouping and ordering
         $query .= " GROUP BY u.user_id ORDER BY $sort $order";
-    
+
         // Apply LIMIT and OFFSET if limit is set
-        if ($limit) {
+        if ($limit !== null) {
             $query .= " LIMIT :limit OFFSET :offset";
         }
-    
+
         $stmt = $this->db->prepare($query);
-    
+
         // Bind parameters
         if (!empty($search)) {
             $searchParam = '%' . $search . '%';
@@ -91,19 +90,19 @@ class UserController {
         if (!empty($roleFilter)) {
             $stmt->bindParam(':role', $roleFilter);
         }
-        if ($limit) {
+        if ($limit !== null) {
             $stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
             $stmt->bindParam(':offset', $offset, PDO::PARAM_INT);
         }
-    
+
         $stmt->execute();
         $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
+
         // Remove the password field from each user
         foreach ($users as &$user) {
             unset($user['password']);
         }
-    
+
         response(empty($users) ? 'error' : 'success', empty($users) ? 'No users found.' : 'Users retrieved successfully', $users, 200);
     }
 
