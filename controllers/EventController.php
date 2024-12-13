@@ -551,34 +551,43 @@ class EventController {
         $userIdFromJWT = $this->getUserId(); // Get user ID from JWT
         
         // Validate roles
-        if (!in_array('Propose', $roles) && !in_array('Admin', $roles)) {
+        if (!array_intersect(['Propose', 'Admin', 'Superadmin'], $roles)) {
             response('error', 'Unauthorized.', null, 403);
             return;
         }
     
-        // For 'Admin', only notes can be updated
-        if (in_array('Admin', $roles)) {
+        // For 'Admin' or 'Super Admin', only notes and status can be updated
+        if (array_intersect(['Admin', 'Superadmin'], $roles)) {
             $note = $_POST['note'] ?? '';
+            $status = $_POST['status'] ?? null;
+    
+            // Validate note
             if (empty($note)) {
-                response('error', 'Note is required for admin.', null, 400);
+                response('error', 'Note is required for Admin or Superadmin.', null, 400);
                 return;
             }
     
-            // Update note and track admin user
+            // Validate status (only one status, between 1 and 6)
+            if ($status === null || !is_numeric($status) || (int)$status < 1 || (int)$status > 6) {
+                response('error', 'Valid status is required for Admin or Superadmin (values: 1-6).', null, 400);
+                return;
+            }
+    
+            // Update note and status, and track admin or Superadmin user
             $stmt = $this->db->prepare("
                 UPDATE event
-                SET note = ?, status = 2, admin_user_id = ?
+                SET note = ?, status = ?, admin_user_id = ?
                 WHERE event_id = ?
             ");
     
-            if ($stmt->execute([$note, $userIdFromJWT, $eventId])) {
-                $updatedEventStmt = $this->db->prepare("SELECT note, admin_user_id FROM event WHERE event_id = ?");
+            if ($stmt->execute([$note, $status, $userIdFromJWT, $eventId])) {
+                $updatedEventStmt = $this->db->prepare("SELECT note, status, admin_user_id FROM event WHERE event_id = ?");
                 $updatedEventStmt->execute([$eventId]);
                 $updatedEvent = $updatedEventStmt->fetch(PDO::FETCH_ASSOC);
     
-                response('success', 'Event note updated successfully.', ['event' => $updatedEvent], 200);
+                response('success', 'Event updated successfully by Admin or Superadmin.', ['event' => $updatedEvent], 200);
             } else {
-                response('error', 'Failed to update event note.', null, 500);
+                response('error', 'Failed to update event.', null, 500);
             }
         } else if (in_array('Propose', $roles)) {
             // Validate all fields except notes for 'Propose'
@@ -649,6 +658,7 @@ class EventController {
             }
         }
     }
+    
     
       
     // Delete an event by ID
