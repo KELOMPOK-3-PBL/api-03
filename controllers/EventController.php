@@ -548,9 +548,9 @@ class EventController {
     public function updateEvent($eventId) {
         $this->jwtHelper->decodeJWT(); // Verify JWT
         $roles = $this->getRoles(); // Get roles from JWT
-        $userIdFromJWT = $this->getUserId();
-    
-        // Validasi role
+        $userIdFromJWT = $this->getUserId(); // Get user ID from JWT
+        
+        // Validate roles
         if (!in_array('Propose', $roles) && !in_array('Admin', $roles)) {
             response('error', 'Unauthorized.', null, 403);
             return;
@@ -560,19 +560,19 @@ class EventController {
         if (in_array('Admin', $roles)) {
             $note = $_POST['note'] ?? '';
             if (empty($note)) {
-                response('error', 'note are required for admin.', null, 400);
+                response('error', 'Note is required for admin.', null, 400);
                 return;
             }
     
-            // No file upload logic
+            // Update note and track admin user
             $stmt = $this->db->prepare("
                 UPDATE event
-                SET note = ?, status = 2
+                SET note = ?, status = 2, admin_user_id = ?
                 WHERE event_id = ?
             ");
     
-            if ($stmt->execute([$note, $eventId])) {
-                $updatedEventStmt = $this->db->prepare("SELECT note FROM event WHERE event_id = ?");
+            if ($stmt->execute([$note, $userIdFromJWT, $eventId])) {
+                $updatedEventStmt = $this->db->prepare("SELECT note, admin_user_id FROM event WHERE event_id = ?");
                 $updatedEventStmt->execute([$eventId]);
                 $updatedEvent = $updatedEventStmt->fetch(PDO::FETCH_ASSOC);
     
@@ -649,6 +649,7 @@ class EventController {
             }
         }
     }
+    
       
     // Delete an event by ID
     public function deleteEvent($eventId) {
