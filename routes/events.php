@@ -53,7 +53,7 @@ switch ($request_method) {
     case 'POST':
         if ($event_id) {
             // Update event if an event_id is provided and the user has the appropriate role
-            if (in_array('Admin', $user_roles) || in_array('Propose', $user_roles)) {
+            if (array_intersect(['Propose', 'Admin', 'Superadmin'], $user_roles)) {
                 $eventController->updateEvent($event_id);
             } else {
                 response('error', 'Unauthorized to update events.', null, 403); // User not authorized
