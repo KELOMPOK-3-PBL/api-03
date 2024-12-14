@@ -490,7 +490,7 @@ class EventController {
             return;
         }
     
-        // Validasi dan pengambilan data
+        // Validate and collect data
         $title = $_POST['title'] ?? '';
         $description = $_POST['description'] ?? '';
         $location = $_POST['location'] ?? '';
@@ -504,7 +504,7 @@ class EventController {
         $dateAdd = date('Y-m-d H:i:s');
         $status = 1;
     
-        // Validasi wajib
+        // Validate required fields
         if (empty($title) || empty($description) || empty($dateStart) || empty($dateEnd) || $quota <= 0) {
             response('error', 'All fields are required and quota must be greater than 0.', null, 400);
             return;
@@ -514,7 +514,7 @@ class EventController {
         $fileUploadHelper = new FileUploadHelper();
         $poster = $fileUploadHelper->uploadFile($_FILES['poster'], 'poster');
     
-        // Insert event ke database
+        // Insert event into the database
         $stmt = $this->db->prepare("
             INSERT INTO event (title, description, poster, location, place, quota, date_start, date_end, schedule, propose_user_id, category_id, date_add, status)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -523,10 +523,16 @@ class EventController {
         if ($stmt->execute([$title, $description, $poster, $location, $place, $quota, $dateStart, $dateEnd, $schedule, $proposeUserId, $categoryId, $dateAdd, $status])) {
             $eventId = $this->db->lastInsertId();
     
-            // Process invited users
+            // Process invited users using their IDs
             if (isset($_POST['invited_users']) && !empty(trim($_POST['invited_users']))) {
-                $usernames = array_filter(array_map('trim', explode(',', $_POST['invited_users'])));
-                $invitedUserIds = $this->getUserIdsByUsername($usernames);
+                $userIds = array_map('trim', explode(',', $_POST['invited_users']));
+                $invitedUserIds = $this->getExistingUserIds($userIds);
+    
+                // Validate that all provided user IDs exist
+                if (count($userIds) !== count($invitedUserIds)) {
+                    response('error', 'Some invited users do not exist.', null, 400);
+                    return;
+                }
     
                 foreach ($invitedUserIds as $userId) {
                     $inviteStmt = $this->db->prepare("INSERT INTO invited (event_id, user_id) VALUES (?, ?)");
@@ -552,7 +558,14 @@ class EventController {
             response('error', 'Failed to create event.', null, 500);
         }
     }
-       
+    
+    private function getExistingUserIds(array $userIds) {
+        $placeholders = implode(',', array_fill(0, count($userIds), '?'));
+        $stmt = $this->db->prepare("SELECT user_id FROM user WHERE user_id IN ($placeholders)");
+        $stmt->execute($userIds);
+        return $stmt->fetchAll(PDO::FETCH_COLUMN);
+    }
+    
     // Update an event by ID
     public function updateEvent($eventId) {
         $this->jwtHelper->decodeJWT(); // Verify JWT
@@ -640,8 +653,14 @@ class EventController {
     
             if ($stmt->execute([$title, $description, $location, $place, $quota, $dateStart, $dateEnd, $schedule, $categoryId, $poster, $eventId])) {
                 if (isset($_POST['invited_users']) && !empty($_POST['invited_users'])) {
-                    $usernames = explode(',', $_POST['invited_users']);
-                    $invitedUserIds = $this->getUserIdsByUsername($usernames);
+                    $invitedid = explode(',', $_POST['invited_users']);
+                    $invitedUserIds = $this->getExistingUserIds(array_map('intval', $invitedid)); // Hanya ID pengguna yang ada
+    
+                    // Validate that all provided invitedid were found
+                    if (count($invitedid) !== count($invitedUserIds)) {
+                        response('error', 'Some invited users do not exist.', null, 400);
+                        return;
+                    }
     
                     $deleteStmt = $this->db->prepare("DELETE FROM invited WHERE event_id = ?");
                     $deleteStmt->execute([$eventId]);
@@ -666,10 +685,8 @@ class EventController {
                 response('error', 'Failed to update event.', null, 500);
             }
         }
-    }
+    }    
     
-    
-      
     // Delete an event by ID
     public function deleteEvent($eventId) {
         $this->jwtHelper->decodeJWT(); // Verify JWT
