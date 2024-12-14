@@ -523,6 +523,7 @@ class EventController {
         if ($stmt->execute([$title, $description, $poster, $location, $place, $quota, $dateStart, $dateEnd, $schedule, $proposeUserId, $categoryId, $dateAdd, $status])) {
             $eventId = $this->db->lastInsertId();
     
+            // Process invited users
             if (isset($_POST['invited_users']) && !empty(trim($_POST['invited_users']))) {
                 $usernames = array_filter(array_map('trim', explode(',', $_POST['invited_users'])));
                 $invitedUserIds = $this->getUserIdsByUsername($usernames);
@@ -536,14 +537,22 @@ class EventController {
             // Fetch event data
             $eventStmt = $this->db->prepare("SELECT * FROM event WHERE event_id = ?");
             $eventStmt->execute([$eventId]);
-            $event = $eventStmt->fetch(PDO::FETCH_ASSOC);       
-            
-            // Return success response with event data and invited users
-            response('success', 'Event created successfully.', ['event' => $event, 'invited_users' => $invitedUserIds], 201);
+            $event = $eventStmt->fetch(PDO::FETCH_ASSOC);
+    
+            // Prepare response, ensuring invited_users is only included if it's set
+            $responseData = [
+                'event' => $event,
+            ];
+            if (isset($invitedUserIds) && !empty($invitedUserIds)) {
+                $responseData['invited_users'] = $invitedUserIds;
+            }
+    
+            response('success', 'Event created successfully.', $responseData, 201);
         } else {
             response('error', 'Failed to create event.', null, 500);
         }
-    }       
+    }
+       
     // Update an event by ID
     public function updateEvent($eventId) {
         $this->jwtHelper->decodeJWT(); // Verify JWT
