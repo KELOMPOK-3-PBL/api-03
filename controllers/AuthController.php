@@ -48,6 +48,32 @@ class AuthController {
         return JWT::encode($payload, JWT_SECRET, 'HS256');
     }
 
+    public function refreshToken() {
+        $refreshToken = $_COOKIE['refresh_token'] ?? '';
+    
+        if (empty($refreshToken)) {
+            response('error', 'Refresh token is required.', null, 400);
+            return;
+        }
+    
+        try {
+            // Decode the refresh token
+            $decoded = JWT::decode($refreshToken, new Key(JWT_SECRET, 'HS256'));
+            $userId = $decoded->user_id;
+            $roles = $decoded->roles;
+    
+            // Generate a new JWT
+            $newJwt = $this->generateJWT($userId, $roles);
+    
+            // Set the new JWT in a cookie
+            $this->setJWTInCookie($newJwt, JWT_EXPIRATION_TIME);
+    
+            response('success', 'Access token refreshed successfully.', ['token' => $newJwt], 200);
+        } catch (Exception $e) {
+            response('error', 'Invalid or expired refresh token.', null, 401);
+        }
+    }
+    
     private function setRefreshTokenInCookie($refreshToken) {
         $cookieParams = [
             'expires' => time() + JWT_REFRESH_EXPIRATION_TIME, // Longer expiration time for refresh token
@@ -79,6 +105,7 @@ class AuthController {
         setcookie('jwt', $jwt, $cookieParams);
     }
 
+    
     // User login
     public function login() {
         $data = json_decode(file_get_contents("php://input"), true);
