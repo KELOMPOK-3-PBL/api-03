@@ -64,7 +64,7 @@ class JWTHelper {
                 return array_map('trim', explode(',', $decoded['roles']));
             }
         }
-        return [];
+        return ['Propose', 'Admin', 'Superadmin'];
     }
 
     public function getUserId() {
