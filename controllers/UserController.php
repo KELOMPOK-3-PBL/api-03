@@ -63,7 +63,7 @@ class UserController {
         // Filtering conditions
         $conditions = [];
         if (!empty($search)) {
-            $conditions[] = "(u.username LIKE :search OR u.email LIKE :search)";
+            $conditions[] = "u.username LIKE :search";
         }
         if (!empty($roleFilter)) {
             $conditions[] = "r.role_name = :role";
@@ -109,6 +109,7 @@ class UserController {
         response(empty($users) ? 'error' : 'success', empty($users) ? 'No users found.' : 'Users retrieved successfully', $users, 200);
     }
     
+    
 
     public function getUserById($id) {
         $roles = $this->getRoles();
@@ -140,7 +141,7 @@ class UserController {
 
     public function searchUsers($query) {
         $roles = $this->getRoles();
-        if (empty($roles)) {
+        if (empty($roles) || !array_intersect($roles, ['Superadmin', 'Admin', 'Propose'])) {
             response('error', 'Unauthorized access.', null, 403);
             return;
         }
