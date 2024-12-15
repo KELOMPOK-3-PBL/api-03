@@ -524,6 +524,7 @@ class EventController {
             $eventId = $this->db->lastInsertId();
     
             // Process invited users using their IDs
+            $invitedUserIds = [];
             if (isset($_POST['invited_users']) && !empty(trim($_POST['invited_users']))) {
                 $userIds = array_map('trim', explode(',', $_POST['invited_users']));
                 $invitedUserIds = $this->getExistingUserIds($userIds);
@@ -547,11 +548,8 @@ class EventController {
     
             // Prepare response, ensuring invited_users is only included if it's set
             $responseData = [
-                'event' => $event,
+                'event' => array_merge($event, ['invited_users' => $invitedUserIds])
             ];
-            if (isset($invitedUserIds) && !empty($invitedUserIds)) {
-                $responseData['invited_users'] = $invitedUserIds;
-            }
     
             response('success', 'Event created successfully.', $responseData, 201);
         } else {
@@ -652,6 +650,7 @@ class EventController {
             ");
     
             if ($stmt->execute([$title, $description, $location, $place, $quota, $dateStart, $dateEnd, $schedule, $categoryId, $poster, $eventId])) {
+                $invitedUserIds = [];
                 if (isset($_POST['invited_users']) && !empty($_POST['invited_users'])) {
                     $invitedid = explode(',', $_POST['invited_users']);
                     $invitedUserIds = $this->getExistingUserIds(array_map('intval', $invitedid)); // Hanya ID pengguna yang ada
@@ -680,7 +679,9 @@ class EventController {
                 $invitedUsers = $invitedStmt->fetchAll(PDO::FETCH_ASSOC);
                 $invitedUserIds = array_column($invitedUsers, 'user_id');
     
-                response('success', 'Event updated successfully.', ['event' => $updatedEvent, 'invited_users' => $invitedUserIds], 200);
+                response('success', 'Event updated successfully.', [
+                    'event' => array_merge($updatedEvent, ['invited_users' => $invitedUserIds])
+                ], 200);
             } else {
                 response('error', 'Failed to update event.', null, 500);
             }
