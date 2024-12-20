@@ -55,7 +55,7 @@ class EventController {
         $updateQuery = "
         UPDATE event
         SET status = 6
-        WHERE date_end < NOW() AND status != 6
+        WHERE date_end < NOW() AND status = 5
         ";
 
         $this->db->prepare($updateQuery)->execute();
@@ -168,7 +168,7 @@ class EventController {
         $updateQuery = "
         UPDATE event
         SET status = 6
-        WHERE date_end < NOW() AND status != 6
+        WHERE date_end < NOW() AND status = 5
         ";
 
         $this->db->prepare($updateQuery)->execute();
@@ -290,7 +290,7 @@ class EventController {
         $updateQuery = "
         UPDATE event
         SET status = 6
-        WHERE date_end < NOW() AND status != 6
+        WHERE date_end < NOW() AND status = 5
         ";
 
         $this->db->prepare($updateQuery)->execute();
@@ -419,7 +419,7 @@ class EventController {
         $updateQuery = "
         UPDATE event
         SET status = 6
-        WHERE date_end < NOW() AND status != 6
+        WHERE date_end < NOW() AND status = 5
         ";
 
         $this->db->prepare($updateQuery)->execute();
