@@ -297,118 +297,108 @@ class UserController {
             return;
         }
     
-        // Initialize user fields with existing data if no new data is provided
-        // For Superadmin, allow all updates
+        // Set the user ID for subsequent operations
+        $this->user_id = $id;
+    
+        // Handle data updates based on roles
         if (in_array('Superadmin', $roles)) {
             $this->username = htmlspecialchars(strip_tags($_POST['username'] ?? $currentUserData['username']));
             $this->email = htmlspecialchars(strip_tags($_POST['email'] ?? $currentUserData['email']));
+            $rolesInput = $_POST['roles'] ?? '';
+            $this->roles = array_map('intval', explode(',', $rolesInput));
         } else {
-            // Non-Superadmin: Retain the existing username and only update allowed fields
-            $this->username = $currentUserData['username']; // Ensure username is not set to null
-            $this->email = $currentUserData['email'];
-        }
-    
-        // Members can only update their password, about, and avatar
-        $this->password = htmlspecialchars(strip_tags($_POST['password'] ?? $currentUserData['password']));
-        $this->about = htmlspecialchars(strip_tags($_POST['about'] ?? $currentUserData['about']));
-    
-        // Convert roles input (e.g., "1,3") to an array if it's a superadmin
-        $rolesInput = $_POST['roles'] ?? '';
-        if (in_array('Superadmin', $roles)) {
-            $this->roles = array_map('intval', explode(',', $rolesInput)); // Convert roles to an array of integers
-        } else {
-            $this->roles = []; // If not superadmin, roles should remain empty
-        }
-    
-        // Set user_id to the provided id (needed for the assignRoles method)
-        $this->user_id = $id;  // Ensure user_id is set correctly
-    
-        // If avatar is provided, handle the upload
-        if (isset($_FILES['avatar']) && $_FILES['avatar']['error'] === UPLOAD_ERR_OK) {
-            // Fetch the current avatar file path (you can fetch this from the database or existing user data)
-            $oldAvatar = $currentUserData['avatar'] ?? null;
-    
-            // Initialize the FileUploadHelper
-            $fileUploadHelper = new FileUploadHelper();
-            
-            // Upload the new avatar and delete the old one if necessary
-            try {
-                $this->avatar = $fileUploadHelper->uploadFile($_FILES['avatar'], 'avatar', $oldAvatar);
-                
-                // If there was an old avatar, delete it after the upload is successful
-                if ($oldAvatar) {
-                    $fileUploadHelper->deleteFile($oldAvatar);
-                }
-            } catch (Exception $e) {
-                response('error', 'Failed to upload avatar. ' . $e->getMessage(), null, 500);
-                return;
-            }
-        } else {
-            // If no new avatar is uploaded, retain the old one
+            $this->about = htmlspecialchars(strip_tags($_POST['about'] ?? $currentUserData['about']));
+            $this->password = htmlspecialchars(strip_tags($_POST['password'] ?? $currentUserData['password']));
             $this->avatar = $currentUserData['avatar'];
+    
+            if (isset($_FILES['avatar']) && $_FILES['avatar']['error'] === UPLOAD_ERR_OK) {
+                $fileUploadHelper = new FileUploadHelper();
+                try {
+                    $this->avatar = $fileUploadHelper->uploadFile($_FILES['avatar'], 'avatar', $currentUserData['avatar']);
+                    if ($currentUserData['avatar']) {
+                        $fileUploadHelper->deleteFile($currentUserData['avatar']);
+                    }
+                } catch (Exception $e) {
+                    response('error', 'Failed to upload avatar. ' . $e->getMessage(), null, 500);
+                    return;
+                }
+            }
         }
     
-        // If the update is successful
+        // Update the user
         if ($this->update($id)) {
             if (!empty($this->roles) && !$this->assignRoles()) {
-                // If roles were updated, and assigning them failed, return an error
-                response('error', 'User update failed while updating roles.', null, 400);
-            } else {
-                // If roles were not updated or assignment was successful
-                $updatedUserData = $this->getUserDataById($id); // Fetch updated user data
-                
-                // Remove password from updated user data
-                unset($updatedUserData['password']);
-                
-                // Return success response with the updated user data (excluding the password)
-                response('success', 'User updated successfully.', $updatedUserData, 200);
+                response('error', 'Failed to update roles.', null, 400);
+                return;
             }
+            $updatedUserData = $this->getUserDataById($id);
+            unset($updatedUserData['password']);
+            response('success', 'User updated successfully.', $updatedUserData, 200);
         } else {
-            response('error', 'User update failed.', null, 400);
+            response('error', 'Failed to update user.', null, 400);
         }
     }
     
        
     private function update($id) {
         // Start building the base query
-        $query = "UPDATE " . $this->table_name . " SET username = :username, email = :email, about = :about";
-        
-        // Add avatar to the query if provided
-        if ($this->avatar) {
-            $query .= ", avatar = :avatar";  // Append avatar update only if it's provided
+        $query = "UPDATE " . $this->table_name . " SET";
+        $fields = [];
+        $bindings = [];
+    
+        // Only allow Superadmin to update specific fields
+        if (in_array('Superadmin', $this->getRoles())) {
+            if (!empty($this->username)) {
+                $fields[] = "username = :username";
+                $bindings[":username"] = $this->username;
+            }
+            if (!empty($this->email)) {
+                $fields[] = "email = :email";
+                $bindings[":email"] = $this->email;
+            }
+            if (!empty($this->roles)) {
+                // Roles are handled outside SQL, no need to include here
+                // Just to make sure we handle them in assignRoles()
+            }
+        } else {
+            // Non-Superadmin: Can only update about, avatar, and password
+            if (!empty($this->about)) {
+                $fields[] = "about = :about";
+                $bindings[":about"] = $this->about;
+            }
+            if (!empty($this->avatar)) {
+                $fields[] = "avatar = :avatar";
+                $bindings[":avatar"] = $this->avatar;
+            }
+            if (!empty($this->password)) {
+                $fields[] = "password = :password";
+                $bindings[":password"] = password_hash($this->password, PASSWORD_BCRYPT);
+            }
         }
-        
-        // Add password to the query if provided
-        if (!empty($this->password)) {
-            $query .= ", password = :password";  // Append password update only if it's provided
+    
+        // Combine the fields for the SET clause
+        if (empty($fields)) {
+            // No valid fields to update
+            response('error', 'No valid fields to update.', null, 400);
+            return false;
         }
-        
-        // Finalize the query with the WHERE clause
-        $query .= " WHERE user_id = :user_id";
-        
+    
+        $query .= " " . implode(", ", $fields) . " WHERE user_id = :user_id";
+        $bindings[":user_id"] = $id;
+    
         // Prepare the SQL statement
         $stmt = $this->db->prepare($query);
-        
-        // Bind the parameters
-        $stmt->bindParam(":username", $this->username);
-        $stmt->bindParam(":email", $this->email);
-        $stmt->bindParam(":about", $this->about);
-        $stmt->bindParam(":user_id", $id);
-        
-        // Bind password if provided
-        if (!empty($this->password)) {
-            $hashedPassword = password_hash($this->password, PASSWORD_BCRYPT);
-            $stmt->bindParam(":password", $hashedPassword);
+    
+        // Bind the parameters dynamically
+        foreach ($bindings as $param => $value) {
+            $stmt->bindValue($param, $value);
         }
-        
-        // Bind avatar if provided
-        if ($this->avatar) {
-            $stmt->bindParam(":avatar", $this->avatar);
-        }
-        
+    
         // Execute the update query
         return $stmt->execute();
     }
+    
+    
     
     private function getUserDataById($id) {
         // Query to fetch the user data based on user_id
