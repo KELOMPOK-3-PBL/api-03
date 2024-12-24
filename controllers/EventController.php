@@ -546,9 +546,21 @@ class EventController {
             $eventStmt->execute([$eventId]);
             $event = $eventStmt->fetch(PDO::FETCH_ASSOC);
     
-            // Prepare response, ensuring invited_users is only included if it's set
+            // Fetch invited users data with username and avatar
+            $invitedUsersStmt = $this->db->prepare("
+                SELECT u.username, u.avatar 
+                FROM user u
+                JOIN invited i ON u.user_id = i.user_id
+                WHERE i.event_id = ?
+            ");
+            $invitedUsersStmt->execute([$eventId]);
+            $invitedUsers = $invitedUsersStmt->fetchAll(PDO::FETCH_ASSOC);
+    
+            // Prepare response data
             $responseData = [
-                'event' => array_merge($event, ['invited_users' => $invitedUserIds])
+                'event' => array_merge($event, [
+                    'invited_users' => $invitedUsers
+                ])
             ];
     
             response('success', 'Event created successfully.', $responseData, 201);
@@ -670,17 +682,23 @@ class EventController {
                     }
                 }
     
+                // Fetch the updated event data
                 $updatedEventStmt = $this->db->prepare("SELECT * FROM event WHERE event_id = ?");
                 $updatedEventStmt->execute([$eventId]);
                 $updatedEvent = $updatedEventStmt->fetch(PDO::FETCH_ASSOC);
     
-                $invitedStmt = $this->db->prepare("SELECT user_id FROM invited WHERE event_id = ?");
-                $invitedStmt->execute([$eventId]);
-                $invitedUsers = $invitedStmt->fetchAll(PDO::FETCH_ASSOC);
-                $invitedUserIds = array_column($invitedUsers, 'user_id');
+                // Fetch invited users with username and avatar
+                $invitedUsersStmt = $this->db->prepare("
+                    SELECT u.username, u.avatar 
+                    FROM user u
+                    JOIN invited i ON u.user_id = i.user_id
+                    WHERE i.event_id = ?
+                ");
+                $invitedUsersStmt->execute([$eventId]);
+                $invitedUsers = $invitedUsersStmt->fetchAll(PDO::FETCH_ASSOC);
     
                 response('success', 'Event updated successfully.', [
-                    'event' => array_merge($updatedEvent, ['invited_users' => $invitedUserIds])
+                    'event' => array_merge($updatedEvent, ['invited_users' => $invitedUsers])
                 ], 200);
             } else {
                 response('error', 'Failed to update event.', null, 500);
