@@ -593,11 +593,11 @@ class EventController {
             $note = $_POST['note'] ?? '';
             $status = $_POST['status'] ?? null;
     
-            // Validate note
-            if (empty($note)) {
-                response('error', 'Note is required for Admin or Superadmin.', null, 400);
-                return;
-            }
+            // // Validate note
+            // if (empty($note)) {
+            //     response('error', 'Note is required for Admin or Superadmin.', null, 400);
+            //     return;
+            // }
     
             // Validate status (only one status, between 1 and 6)
             if ($status === null || !is_numeric($status) || (int)$status < 1 || (int)$status > 6) {
