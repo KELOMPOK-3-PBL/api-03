@@ -28,7 +28,7 @@ class JWTHelper {
     
 
     private function getJWTFromCookie() {
-        if (!isset($_COOKIE['jwt'])) {
+        if (!isset($_COOKIE['access_token'])) {
             throw new Exception('Authorization token not provided in cookie.', 401);
         }
         

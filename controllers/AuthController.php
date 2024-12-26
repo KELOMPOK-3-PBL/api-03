@@ -97,12 +97,12 @@ class AuthController {
         ];
     
         // If expiration is provided, set it; otherwise, it will default to a session cookie
-        // if ($expiration) {
-        //     $cookieParams['expires'] = time() + $expiration;
-        // }
+        if ($expiration) {
+            $cookieParams['expires'] = time() + $expiration;
+        }
     
         // Set the cookie
-        setcookie('jwt', $jwt, $cookieParams);
+        setcookie('access_token', $jwt, $cookieParams);
     }
 
     
@@ -157,7 +157,7 @@ class AuthController {
                     $this->setRefreshTokenInCookie($refreshToken);
                 }
 
-                response('success', 'Login successful.', ['token' => $jwt, 'refresh_token' => $refreshToken], 200);
+                response('success', 'Login successful.', ['access_token' => $jwt, 'refresh_token' => $refreshToken], 200);
             } else {
                 response('error', 'Incorrect email or password.', null, 401);
             }
@@ -169,7 +169,7 @@ class AuthController {
     // User logout
     public function logout() {
         // Clear the cookie
-        setcookie('jwt', '', time() - 3600, '/');
+        setcookie('access_token', '', time() - 3600, '/');
         setcookie('refresh_token', '', time() - 3600, '/');
         response('success', 'Logout successful.', null, 200);
     }
