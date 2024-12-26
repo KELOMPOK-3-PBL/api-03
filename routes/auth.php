@@ -32,8 +32,8 @@ switch ($request_method) {
     case 'POST':
         if (isset($_GET['action']) && $_GET['action'] === 'forgotPassword') {
             $authController->forgotPassword();
-        } elseif (isset($_GET['action']) && $_GET['action'] === 'resetPassword') {
-            $authController->resetPassword();
+        // } elseif (isset($_GET['action']) && $_GET['action'] === 'resetPassword') {
+        //     $authController->resetPassword();
         } else {
             $authController->login();
         }
