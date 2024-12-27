@@ -1,7 +1,7 @@
 <?php
 
 require_once "../controllers/CategoryController.php";
-require_once "../config/Database.php";
+require_once "../config/database.php";
 
 // Membuat koneksi database
 $db = new Database();
