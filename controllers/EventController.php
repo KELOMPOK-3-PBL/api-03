@@ -710,7 +710,7 @@ class EventController {
     public function deleteEvent($eventId) {
         $this->jwtHelper->decodeJWT(); // Verify JWT
         $roles = $this->getRoles(); // Get roles from JWT
-        if (!in_array('Admin', $roles)) {
+        if (!in_array('Superadmin' || 'Admin' || 'Propose', $roles)) {
             response('error', 'Unauthorized.', null, 403);
             return;
         }
