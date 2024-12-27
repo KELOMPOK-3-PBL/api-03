@@ -37,12 +37,7 @@ class UserController {
     }
     
     public function getAllUsers() {
-        $roles = $this->getRoles();
-    
-        if (!in_array('Superadmin', $roles)) {
-            response('error', 'Only superadmin can access this resource.', null, 403);
-            return;
-        }
+        $roles = $this->getRoles(); // Roles of the requesting user
     
         // Parameters for searching, sorting, and filtering
         $search = isset($_GET['search']) ? htmlspecialchars(strip_tags($_GET['search'])) : '';
@@ -69,7 +64,7 @@ class UserController {
             $conditions[] = "r.role_name = :role";
         }
         // Exclude Superadmin role
-        $conditions[] = "r.role_name != 'Superadmin'"; 
+        $conditions[] = "r.role_name != 'Superadmin'";
     
         if ($conditions) {
             $query .= " WHERE " . implode(" AND ", $conditions);
@@ -101,21 +96,25 @@ class UserController {
         $stmt->execute();
         $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-        // Remove the password field from each user
+        // Process each user based on the role of the requesting user
         foreach ($users as &$user) {
-            unset($user['password']);
+            unset($user['password']); // Always unset password
+    
+            // If the requesting user is not a Superadmin
+            if (!in_array('Superadmin', $roles)) {
+                unset($user['email']);
+                unset($user['roles']);
+            }
         }
     
         response(empty($users) ? 'error' : 'success', empty($users) ? 'No users found.' : 'Users retrieved successfully', $users, 200);
     }
     
-    
 
     public function getUserById($id) {
-        $roles = $this->getRoles(); // Peran pengguna yang meminta
-        $userIdFromJWT = $this->getUserId(); // ID pengguna dari JWT
+        $roles = $this->getRoles();
+        $userIdFromJWT = $this->getUserId();
     
-        // Ambil data pengguna target berdasarkan ID
         $query = "SELECT u.*, GROUP_CONCAT(r.role_name) as roles 
                   FROM " . $this->table_name . " u
                   LEFT JOIN user_roles ur ON u.user_id = ur.user_id
@@ -136,19 +135,21 @@ class UserController {
         unset($user['password']);
     
         // Periksa role pengguna target
-        $targetRoles = explode(',', $user['roles']); // Pisahkan role dari GROUP_CONCAT
+        $targetRoles = explode(',', $user['roles']);
         if (in_array('Superadmin', $targetRoles) && $userIdFromJWT != $id) {
-            // Jika target adalah Superadmin, hanya Superadmin itu sendiri yang bisa mengakses
             response('error', 'Unauthorized access to Superadmin profile.', null, 403);
             return;
         }
     
-        // Jika lolos semua validasi, kirimkan data pengguna
+        // Handle field visibility for non-Superadmin roles
+        if (!in_array('Superadmin', $roles)) {
+            unset($user['email']);
+            unset($user['roles']);
+        }
+    
         response('success', 'User found.', $user, 200);
-    }
-    
-    
-    
+    }   
+     
 
     public function searchUsers($query) {
         $roles = $this->getRoles();
