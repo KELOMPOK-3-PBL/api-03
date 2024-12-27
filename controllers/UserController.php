@@ -184,6 +184,110 @@ class UserController {
         response('success', 'Users found.', $usernames, 200);
     }    
     
+    // Method to handle bulk user creation via file upload
+    public function bulkUserUpload() {
+        // Check if the user has 'Superadmin' role
+        $roles = $this->getRoles();
+        if (!in_array('Superadmin', $roles)) {
+            response('error', 'Only Superadmin can bulk upload users.', null, 403);
+            return;
+        }
+    
+        // Ensure a file was uploaded
+        if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
+            response('error', 'No file uploaded or file upload failed.', null, 400);
+            return;
+        }
+    
+        // Validate file type (only CSV, XLSX, XLS allowed)
+        $allowedExtensions = ['xls', 'xlsx', 'csv'];
+        $fileInfo = pathinfo($_FILES['file']['name']);
+        $fileExtension = strtolower($fileInfo['extension']);
+    
+        if (!in_array($fileExtension, $allowedExtensions)) {
+            response('error', 'Invalid file type. Only .xls, .xlsx, and .csv files are allowed.', null, 400);
+            return;
+        }
+    
+        // Process the file (using PhpSpreadsheet for XLSX/CSV files)
+        $file = $_FILES['file']['tmp_name'];
+    
+        try {
+            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file);
+            $sheet = $spreadsheet->getActiveSheet();
+            $rows = $sheet->toArray();
+    
+            // Validate header
+            $header = $rows[0]; // Assuming first row contains the header
+            $expectedHeader = ['Username', 'Email', 'Password', 'Roles'];
+    
+            foreach ($expectedHeader as $index => $column) {
+                if (strtolower(trim($header[$index])) !== strtolower($column)) {
+                    response('error', 'Invalid file format. Missing or incorrect headers.', null, 400);
+                    return;
+                }
+            }
+    
+            // Process rows (skipping header)
+            $usersCreated = 0;
+            $errors = [];
+    
+            for ($i = 1; $i < count($rows); $i++) {
+                $row = $rows[$i];
+                $this->username = htmlspecialchars(strip_tags($row[0]));
+                $this->email = htmlspecialchars(strip_tags($row[1]));
+                $this->password = htmlspecialchars(strip_tags($row[2]));
+                $rolesInput = isset($row[3]) ? $row[3] : '1'; // Default to '1' if no roles input
+    
+                // Convert roles input to array (comma separated)
+                $this->roles = !empty($rolesInput) ? array_map('intval', explode(',', $rolesInput)) : [];
+    
+                // Check if mandatory fields are present
+                if (empty($this->username) || empty($this->email) || empty($this->password)) {
+                    $errors[] = "Missing data for user in row $i.";
+                    continue; // Skip this row
+                }
+    
+                // Check for duplicate email
+                if ($this->emailExists($this->email)) {
+                    $errors[] = "Email '$this->email' already exists. Skipping row $i.";
+                    continue; // Skip this row
+                }
+    
+                // Create the user
+                if ($this->create()) {
+                    $usersCreated++;
+                } else {
+                    $errors[] = "Failed to create user '$this->username' in row $i.";
+                }
+            }
+    
+            // Return response with success or failure
+            if ($usersCreated > 0) {
+                response('success', "$usersCreated users created successfully.", null, 200);
+            }
+    
+            if (!empty($errors)) {
+                response('error', 'Some users could not be created: ' . implode(' ', $errors), null, 400);
+            }
+    
+        } catch (Exception $e) {
+            response('error', 'Failed to process the file: ' . $e->getMessage(), null, 500);
+        }
+    }
+    
+    // Method to check if email already exists in the database
+    private function emailExists($email) {
+        // Replace with your actual database check logic
+        $query = "SELECT COUNT(*) FROM user WHERE email = :email";
+        $stmt = $this->db->prepare($query);
+        $stmt->bindParam(':email', $email);
+        $stmt->execute();
+        $count = $stmt->fetchColumn();
+        return $count > 0; // Return true if email exists
+    }
+        
+
     public function createUser() {
         $roles = $this->getRoles();
         if (!in_array('Superadmin', $roles)) {
