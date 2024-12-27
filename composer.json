@@ -1,6 +1,7 @@
 {
     "require": {
         "endroid/qr-code": "^5.1",
-        "firebase/php-jwt": "^6.10"
+        "firebase/php-jwt": "^6.10",
+        "phpoffice/phpspreadsheet": "^3.7"
     }
 }
