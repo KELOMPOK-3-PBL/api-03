@@ -32,7 +32,7 @@ class JWTHelper {
             throw new Exception('Authorization token not provided in cookie.', 401);
         }
         
-        return $_COOKIE['jwt'];
+        return $_COOKIE['access_token'];
     }
 
     public function getJWT() {
