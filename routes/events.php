@@ -12,21 +12,23 @@ $eventController = new EventController($db);
 $request_method = $_SERVER["REQUEST_METHOD"];
 
 // Ambil URI dari request
-// Get the path and parse the event_id from it
-
 $event_id = isset($_GET['event_id']) ? $_GET['event_id'] : null;
-// Debugging: Show the event_id being received
-
 
 // Initialize user roles (if needed for other methods)
 $jwtHelper = new JWTHelper();
 $user_roles = [];
 
-// Only retrieve roles for methods that require authentication
-if (in_array($request_method, ['GET', 'POST', 'DELETE'])) {
+// Check if JWT exists and is valid before proceeding
+try {
+    // Attempt to get roles from the JWT token
     $user_roles = $jwtHelper->getRoles(); // Retrieve user roles from the token
+} catch (Exception $e) {
+    // If no JWT or invalid JWT, deny access and return 401 Unauthorized
+    response('error', 'Unauthorized access: ' . $e->getMessage(), null, 401);
+    exit(); // Stop further execution
 }
 
+// Handle the request based on the HTTP method
 switch ($request_method) {
     case 'GET':
         if ($event_id) {
@@ -48,7 +50,6 @@ switch ($request_method) {
             response('error', 'Unauthorized to access events.', null, 403);
         }
         break;
-    
 
     case 'POST':
         if ($event_id) {
