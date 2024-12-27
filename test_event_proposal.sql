@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS `event` (
   CONSTRAINT `event_ibfk_3` FOREIGN KEY (`status`) REFERENCES `status` (`status_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=70 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Dumping data for table testpbl.event: ~53 rows (approximately)
+-- Dumping data for table testpbl.event: ~69 rows (approximately)
 INSERT INTO `event` (`event_id`, `propose_user_id`, `title`, `date_add`, `category_id`, `description`, `poster`, `location`, `place`, `quota`, `date_start`, `date_end`, `schedule`, `updated`, `admin_user_id`, `note`, `status`) VALUES
 	(1, 4, 'Workshop on Web Development', '2024-10-23', 1, 'A workshop to learn modern web development.', 'poster1.jpg', 'City Hall', 'Main Auditorium', 50, '2024-10-24', '2024-10-30', NULL, NULL, 10, 'testing', 6),
 	(2, 5, 'Annual Tech Conference', '2024-10-23', 3, ' This is a detailed description of the Tech Conference 2024.', '/pbl/images/poster/20241118_154126.jpg', ' kandok', ' Teknik Elektro', 100, '2024-12-10', '2024-12-12', NULL, NULL, NULL, NULL, 6),
@@ -112,26 +112,26 @@ INSERT INTO `event` (`event_id`, `propose_user_id`, `title`, `date_add`, `catego
 	(63, 5, 'tester4', '2024-12-26', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241226_065106.jpg', ' kandok', ' Teknik Elektro', 200, '2024-12-10', '2025-02-25', NULL, NULL, 10, NULL, 5),
 	(64, 5, 'tester5', '2024-12-26', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241226_065109.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 1),
 	(65, 5, 'tester6', '2024-12-26', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241226_065112.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, 10, NULL, 5),
-	(66, 5, 'tester7', '2024-12-26', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241226_065115.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 1),
+	(66, 5, 'tester7', '2024-12-26', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241226_065115.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 5),
 	(67, 5, 'tester8', '2024-12-26', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241226_065119.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 1),
 	(68, 5, 'tester9', '2024-12-26', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241226_065122.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 1),
 	(69, 5, 'tester10', '2024-12-26', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241226_065126.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 1),
 	(70, 5, 'tester11', '2024-12-27', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241227_075859.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 1),
-	(71, 5, 'tester12', '2024-12-27', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241227_075902.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 1),
-	(72, 5, 'tester13', '2024-12-27', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241227_075905.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 1),
-	(73, 5, 'tester14', '2024-12-27', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241227_075908.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 1),
-	(74, 5, 'tester15', '2024-12-27', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241227_075911.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 1),
-	(75, 5, 'tester16', '2024-12-27', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241227_075914.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 1),
-	(76, 5, 'tester17', '2024-12-27', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241227_075917.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 1),
-	(77, 5, 'tester18', '2024-12-27', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241227_075920.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 1),
-	(78, 5, 'tester19', '2024-12-27', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241227_075935.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 1),
-	(79, 5, 'tester20', '2024-12-27', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241227_075947.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 1),
-	(80, 5, 'tester21', '2024-12-27', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241227_080036.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 1),
-	(81, 5, 'tester21', '2024-12-27', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241227_080046.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 1),
-	(82, 5, 'tester22', '2024-12-27', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241227_080418.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 1),
-	(83, 5, 'tester23', '2024-12-27', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241227_080430.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 1),
-	(84, 5, 'tester23', '2024-12-27', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241227_080437.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 1),
-	(85, 5, 'tester24', '2024-12-27', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241227_080449.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 1);
+	(71, 5, 'tester12', '2024-12-27', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241227_075902.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 5),
+	(72, 5, 'tester13', '2024-12-27', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241227_075905.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 5),
+	(73, 5, 'tester14', '2024-12-27', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241227_075908.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 5),
+	(74, 5, 'tester15', '2024-12-27', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241227_075911.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 5),
+	(75, 5, 'tester16', '2024-12-27', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241227_075914.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 5),
+	(76, 5, 'tester17', '2024-12-27', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241227_075917.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 5),
+	(77, 5, 'tester18', '2024-12-27', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241227_075920.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 5),
+	(78, 5, 'tester19', '2024-12-27', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241227_075935.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 5),
+	(79, 5, 'tester20', '2024-12-27', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241227_075947.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 5),
+	(80, 5, 'tester21', '2024-12-27', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241227_080036.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 5),
+	(81, 5, 'tester21', '2024-12-27', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241227_080046.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 5),
+	(82, 5, 'tester22', '2024-12-27', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241227_080418.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 5),
+	(83, 5, 'tester23', '2024-12-27', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241227_080430.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 5),
+	(84, 5, 'tester23', '2024-12-27', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241227_080437.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 5),
+	(85, 5, 'tester24', '2024-12-27', 2, ' This is a detailed description of the Tech Conference 2024.', '/pbl/api-03/images/poster/20241227_080449.jpg', ' kandok', ' Teknik Elektro', 200, '2025-01-10', '2025-02-25', NULL, NULL, NULL, NULL, 5);
 
 -- Dumping structure for table testpbl.invited
 CREATE TABLE IF NOT EXISTS `invited` (
@@ -143,7 +143,7 @@ CREATE TABLE IF NOT EXISTS `invited` (
   CONSTRAINT `invited_ibfk_2` FOREIGN KEY (`event_id`) REFERENCES `event` (`event_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Dumping data for table testpbl.invited: ~72 rows (approximately)
+-- Dumping data for table testpbl.invited: ~104 rows (approximately)
 INSERT INTO `invited` (`event_id`, `user_id`) VALUES
 	(35, 4),
 	(36, 4),
