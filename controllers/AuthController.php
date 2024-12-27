@@ -79,7 +79,7 @@ class AuthController {
             'expires' => time() + JWT_REFRESH_EXPIRATION_TIME, // Longer expiration time for refresh token
             'path' => '/', 
             'secure' => false, // Set to true if using HTTPS
-            'httponly' => true, // Prevent JavaScript access to the cookie
+            'httponly' => false, // Prevent JavaScript access to the cookie
             'samesite' => 'Strict',
         ];
         
@@ -92,7 +92,7 @@ class AuthController {
             'path' => '/', // Cookie path
             'domain' => '', // Set domain if needed
             'secure' => false, // Set to true if using HTTPS
-            'httponly' => true, // Prevent JavaScript access to the cookie
+            'httponly' => false, // Prevent JavaScript access to the cookie
             'samesite' => 'Strict', // Set SameSite attribute for CSRF protection
         ];
     
