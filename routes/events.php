@@ -71,7 +71,7 @@ switch ($request_method) {
 
     case 'DELETE':
         if ($event_id) {
-            if (in_array('Admin', $user_roles)) {
+            if (in_array('Admin' || 'Superamin' || 'propose', $user_roles)) {
                 $eventController->deleteEvent($event_id);
             } else {
                 response('error', 'Unauthorized to delete events.', null, 403); // User not authorized
