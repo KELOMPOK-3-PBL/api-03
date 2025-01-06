@@ -594,8 +594,7 @@ class EventController {
     }
     
     // Update an event by ID
-    public function updateEvent($eventId)
-    {
+    public function updateEvent($eventId){
         $this->jwtHelper->decodeJWT(); // Verify JWT
         $roles = $this->getRoles(); // Get roles from JWT
         $userIdFromJWT = $this->getUserId(); // Get user ID from JWT
@@ -609,6 +608,9 @@ class EventController {
         // Initialize fields and their values
         $fieldsToUpdate = [];
         $values = [];
+    
+        // Add updated column to always include the current timestamp
+        $fieldsToUpdate[] = "updated = NOW()";
     
         // Handle 'Admin' and 'Superadmin' role updates
         if (array_intersect(['Admin', 'Superadmin'], $roles)) {
