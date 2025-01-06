@@ -678,7 +678,7 @@ class EventController {
     
             // Update status to a default value (if needed)
             $fieldsToUpdate[] = "status = ?";
-            $values[] = 3;
+            $values[] = 2;
     
             // Ensure at least one field is updated
             if (!empty($fieldsToUpdate)) {
