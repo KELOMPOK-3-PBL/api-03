@@ -277,8 +277,8 @@ CREATE TABLE IF NOT EXISTS `status` (
 -- Dumping data for table testpbl.status: ~6 rows (approximately)
 INSERT INTO `status` (`status_id`, `status_name`) VALUES
 	(1, 'Proposed'),
-	(2, 'Review by Admin'),
-	(3, 'Revision by Propose'),
+	(2, 'Review Admin'),
+	(3, 'Revision Propose'),
 	(4, 'Rejected'),
 	(5, 'Approved'),
 	(6, 'Completed');
